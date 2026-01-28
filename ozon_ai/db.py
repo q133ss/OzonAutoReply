@@ -1,0 +1,167 @@
+﻿import sqlite3
+from typing import Any, Dict, List, Optional
+
+from .ai import generate_ai_response
+
+
+class Database:
+    def __init__(self, path: str) -> None:
+        self.path = path
+        self.conn = sqlite3.connect(self.path)
+        self.conn.row_factory = sqlite3.Row
+
+    def close(self) -> None:
+        self.conn.close()
+
+    def ensure_schema(self) -> None:
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reviews (
+                uuid TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                product_title TEXT,
+                product_url TEXT,
+                offer_id TEXT,
+                cover_image TEXT,
+                sku TEXT,
+                brand_id TEXT,
+                brand_name TEXT,
+                order_delivery_type TEXT,
+                text TEXT,
+                interaction_status TEXT,
+                rating INTEGER,
+                photos_count INTEGER,
+                videos_count INTEGER,
+                comments_count INTEGER,
+                published_at TEXT,
+                is_pinned INTEGER,
+                is_quality_control INTEGER,
+                chat_url TEXT,
+                is_delivery_review INTEGER,
+                ai_response TEXT,
+                user_response TEXT
+            )
+            """
+        )
+        self.conn.commit()
+
+    def get_setting(self, key: str) -> Optional[str]:
+        cur = self.conn.cursor()
+        cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cur.fetchone()
+        return row[0] if row else None
+
+    def set_setting(self, key: str, value: str) -> None:
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO settings (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (key, value),
+        )
+        self.conn.commit()
+
+    def list_accounts(self) -> List[sqlite3.Row]:
+        cur = self.conn.cursor()
+        cur.execute("SELECT id, name FROM accounts ORDER BY id")
+        return cur.fetchall()
+
+    def add_account(self, name: str) -> None:
+        cur = self.conn.cursor()
+        cur.execute("INSERT INTO accounts (name) VALUES (?)", (name,))
+        self.conn.commit()
+
+    def delete_account(self, account_id: int) -> None:
+        cur = self.conn.cursor()
+        cur.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+        self.conn.commit()
+
+    def count_reviews(self) -> int:
+        cur = self.conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM reviews")
+        return int(cur.fetchone()[0])
+
+    def upsert_review(self, review: Dict[str, Any], status: str = "new") -> None:
+        product = review.get("product", {})
+        brand = product.get("brand_info", {})
+        ai_response = review.get("ai_response") or generate_ai_response(review)
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO reviews (
+                uuid, status, product_title, product_url, offer_id, cover_image, sku,
+                brand_id, brand_name, order_delivery_type, text, interaction_status,
+                rating, photos_count, videos_count, comments_count, published_at,
+                is_pinned, is_quality_control, chat_url, is_delivery_review, ai_response, user_response
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            ON CONFLICT(uuid) DO UPDATE SET
+                status = excluded.status,
+                ai_response = excluded.ai_response
+            """,
+            (
+                review.get("uuid"),
+                status,
+                product.get("title"),
+                product.get("url"),
+                product.get("offer_id"),
+                product.get("cover_image"),
+                product.get("sku"),
+                brand.get("id"),
+                brand.get("name"),
+                review.get("orderDeliveryType"),
+                review.get("text"),
+                review.get("interaction_status"),
+                review.get("rating"),
+                review.get("photos_count"),
+                review.get("videos_count"),
+                review.get("comments_count"),
+                review.get("published_at"),
+                int(bool(review.get("is_pinned"))),
+                int(bool(review.get("is_quality_control"))),
+                review.get("chat_url"),
+                int(bool(review.get("is_delivery_review"))),
+                ai_response,
+                review.get("user_response"),
+            ),
+        )
+        self.conn.commit()
+
+    def list_reviews(self, status: str) -> List[Dict[str, Any]]:
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            SELECT * FROM reviews WHERE status = ? ORDER BY published_at DESC
+            """,
+            (status,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+    def update_review_status(self, uuid: str, status: str, response: str) -> None:
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            UPDATE reviews SET status = ?, user_response = ? WHERE uuid = ?
+            """,
+            (status, response, uuid),
+        )
+        self.conn.commit()
