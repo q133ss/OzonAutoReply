@@ -1,5 +1,9 @@
-﻿from PyQt6.QtCore import Qt
+from datetime import datetime
+from pathlib import Path
+
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
+    QDialog,
     QHBoxLayout,
     QListWidget,
     QListWidgetItem,
@@ -10,6 +14,12 @@ from PyQt6.QtWidgets import (
 )
 
 from ...db import Database
+from ..dialogs import AccountSessionDialog
+
+OZON_LOGIN_URL = (
+    "https://seller.ozon.ru/app/registration/signin?"
+    "redirect=L3Jldmlld3M%2FX19ycj0xJmFidF9hdHQ9MQ%3D%3D"
+)
 
 
 class AccountsTab(QWidget):
@@ -42,11 +52,18 @@ class AccountsTab(QWidget):
             self.list_widget.addItem(item)
 
     def _add_account(self) -> None:
-        QMessageBox.information(
-            self,
-            "Скоро",
-            "Добавление аккаунта через Playwright будет доступно позже.",
-        )
+        sessions_dir = Path(__file__).resolve().parents[2] / "data" / "sessions"
+        dialog = AccountSessionDialog(sessions_dir, OZON_LOGIN_URL, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            if not dialog.session_path:
+                QMessageBox.warning(self, "Сессия не сохранена", "Не удалось сохранить сессию.")
+                return
+            if not Path(dialog.session_path).exists():
+                QMessageBox.warning(self, "Сессия не найдена", "Файл сессии не создан. Проверьте лог.")
+                return
+            created_at = dialog.created_at or datetime.now().isoformat(timespec="seconds")
+            self.db.add_account(dialog.account_name, dialog.session_path, created_at)
+            self.refresh()
 
     def _delete_account(self) -> None:
         item = self.list_widget.currentItem()

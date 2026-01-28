@@ -27,10 +27,18 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS accounts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL
+                name TEXT NOT NULL,
+                session_path TEXT,
+                created_at TEXT
             )
             """
         )
+        cur.execute("PRAGMA table_info(accounts)")
+        columns = {row["name"] for row in cur.fetchall()}
+        if "session_path" not in columns:
+            cur.execute("ALTER TABLE accounts ADD COLUMN session_path TEXT")
+        if "created_at" not in columns:
+            cur.execute("ALTER TABLE accounts ADD COLUMN created_at TEXT")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS reviews (
@@ -81,12 +89,15 @@ class Database:
 
     def list_accounts(self) -> List[sqlite3.Row]:
         cur = self.conn.cursor()
-        cur.execute("SELECT id, name FROM accounts ORDER BY id")
+        cur.execute("SELECT id, name, session_path, created_at FROM accounts ORDER BY id")
         return cur.fetchall()
 
-    def add_account(self, name: str) -> None:
+    def add_account(self, name: str, session_path: str, created_at: str) -> None:
         cur = self.conn.cursor()
-        cur.execute("INSERT INTO accounts (name) VALUES (?)", (name,))
+        cur.execute(
+            "INSERT INTO accounts (name, session_path, created_at) VALUES (?, ?, ?)",
+            (name, session_path, created_at),
+        )
         self.conn.commit()
 
     def delete_account(self, account_id: int) -> None:

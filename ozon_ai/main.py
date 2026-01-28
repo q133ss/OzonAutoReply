@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QApplication, QDialog
 
 from .data.sample_reviews import SAMPLE_REVIEWS
 from .db import Database
+from .logging_utils import setup_logging
 from .ui.dialogs import ApiKeyDialog
 from .ui.main_window import MainWindow
 from .ui.styles import APP_STYLESHEET
@@ -22,6 +23,7 @@ def ensure_defaults(db: Database) -> None:
 
 
 def main() -> None:
+    setup_logging()
     app = QApplication(sys.argv)
     app.setStyleSheet(APP_STYLESHEET)
 
