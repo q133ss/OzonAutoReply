@@ -1,4 +1,7 @@
-﻿from PyQt6.QtCore import Qt
+﻿import logging
+from pathlib import Path
+
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QFrame,
@@ -10,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..db import Database
+from ..review_sync import ReviewsPoller
 from .tabs.accounts import AccountsTab
 from .tabs.reviews import ReviewsTab
 from .tabs.settings import SettingsTab
@@ -51,15 +55,25 @@ class MainWindow(QMainWindow):
 
         tabs = QTabWidget()
         tabs.addTab(AccountsTab(db), "Аккаунты")
-        tabs.addTab(ReviewsTab(db), "Отзывы")
+        self.reviews_tab = ReviewsTab(db)
+        tabs.addTab(self.reviews_tab, "Отзывы")
         tabs.addTab(SettingsTab(db), "Настройки")
         chrome_layout.addWidget(tabs)
 
         root_layout.addWidget(chrome)
         self.setCentralWidget(root)
+        self._logger = logging.getLogger("reviews.poller")
+        self._reviews_poller = ReviewsPoller(Path(db.path), interval_ms=60_000, parent=self)
+        self._reviews_poller.synced.connect(self._on_reviews_synced)
+        self._reviews_poller.start(immediate=True)
 
     def _toggle_maximize(self) -> None:
         if self.isMaximized():
             self.showNormal()
         else:
             self.showMaximized()
+
+    def _on_reviews_synced(self, new_count: int) -> None:
+        if new_count > 0:
+            self._logger.info("Added %s new reviews", new_count)
+            self.reviews_tab.refresh()
