@@ -1,5 +1,5 @@
 ﻿import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from .ai import generate_ai_response
 
@@ -110,6 +110,11 @@ class Database:
         cur.execute("SELECT COUNT(*) FROM reviews")
         return int(cur.fetchone()[0])
 
+    def list_review_uuids(self) -> Set[str]:
+        cur = self.conn.cursor()
+        cur.execute("SELECT uuid FROM reviews")
+        return {row[0] for row in cur.fetchall()}
+
     def upsert_review(self, review: Dict[str, Any], status: str = "new") -> None:
         product = review.get("product", {})
         brand = product.get("brand_info", {})
@@ -126,7 +131,10 @@ class Database:
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             ON CONFLICT(uuid) DO UPDATE SET
-                status = excluded.status,
+                status = CASE
+                    WHEN reviews.status = 'completed' THEN reviews.status
+                    ELSE excluded.status
+                END,
                 ai_response = excluded.ai_response
             """,
             (
