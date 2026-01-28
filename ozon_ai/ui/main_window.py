@@ -27,6 +27,7 @@ class MainWindow(QMainWindow):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
         root = QWidget()
+        root.setObjectName("Root")
         root_layout = QVBoxLayout(root)
         root_layout.setContentsMargins(16, 16, 16, 16)
 

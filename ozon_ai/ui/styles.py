@@ -5,8 +5,12 @@ QWidget {
     font-family: "Segoe UI Variable", "Segoe UI";
 }
 
+#Root, QMainWindow {
+    background: transparent;
+}
+
 #Chrome {
-    background: rgba(28, 30, 38, 230);
+    background: rgba(28, 30, 38, 180);
     border-radius: 18px;
 }
 
@@ -94,10 +98,10 @@ QPushButton:pressed {
 }
 
 #WindowButton {
-    min-width: 34px;
-    min-height: 28px;
-    border-radius: 8px;
+    border-radius: 7px;
     background: rgba(255, 255, 255, 18);
+    font-size: 11pt;
+    padding: 0px;
 }
 
 #WindowButton:hover {
@@ -105,9 +109,9 @@ QPushButton:pressed {
 }
 
 #CloseButton {
-    min-width: 34px;
-    min-height: 28px;
-    border-radius: 8px;
+    border-radius: 7px;
+    font-size: 11pt;
+    padding: 0px;
     background: rgba(255, 92, 92, 70);
     border: 1px solid rgba(255, 120, 120, 140);
 }
