@@ -595,3 +595,51 @@ KeyboardInterrupt
 2026-01-29 17:00:07 | INFO | env | Playwright: 1.57.0
 2026-01-29 17:00:07 | INFO | env | Playwright-stealth: 2.0.1
 2026-01-29 17:00:11 | INFO | reviews.poller | Added 180 new reviews
+2026-01-29 17:28:44 | INFO | env | Logging started at 2026-01-29T17:28:44
+2026-01-29 17:28:44 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 17:28:44 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 17:28:44 | INFO | env | Playwright: 1.57.0
+2026-01-29 17:28:44 | INFO | env | Playwright-stealth: 2.0.1
+2026-01-29 17:28:48 | ERROR | uncaught | Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\lexa3\Desktop\ozonQt\ozon_ai\ui\main_window.py", line 76, in _on_reviews_synced
+    def _on_reviews_synced(self, new_count: int) -> None:
+    
+KeyboardInterrupt
+2026-01-29 17:44:19 | INFO | env | Logging started at 2026-01-29T17:44:19
+2026-01-29 17:44:19 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 17:44:19 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 17:44:19 | INFO | env | Playwright: 1.57.0
+2026-01-29 17:44:19 | INFO | env | Playwright-stealth: 2.0.1
+2026-01-29 17:44:22 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-14234. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
+2026-01-29 17:44:37 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-14234. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
+2026-01-29 17:45:30 | INFO | env | Logging started at 2026-01-29T17:45:30
+2026-01-29 17:45:30 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 17:45:30 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 17:45:30 | INFO | env | Playwright: 1.57.0
+2026-01-29 17:45:30 | INFO | env | Playwright-stealth: 2.0.1
+2026-01-29 17:46:55 | ERROR | uncaught | Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\lexa3\Desktop\ozonQt\app.py", line 5, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\lexa3\Desktop\ozonQt\ozon_ai\main.py", line 57, in main
+    app.exec()
+    ~~~~~~~~^^
+KeyboardInterrupt

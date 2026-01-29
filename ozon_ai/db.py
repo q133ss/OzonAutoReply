@@ -129,10 +129,10 @@ class Database:
         cur.execute("SELECT uuid FROM reviews")
         return {row[0] for row in cur.fetchall()}
 
-    def upsert_review(self, review: Dict[str, Any], status: str = "new") -> None:
+    def upsert_review(self, review: Dict[str, Any], status: str = "new", ai_response: Optional[str] = None) -> None:
         product = review.get("product", {})
         brand = product.get("brand_info", {})
-        ai_response = review.get("ai_response") or generate_ai_response(review)
+        ai_response = ai_response or review.get("ai_response") or generate_ai_response(review)
         cur = self.conn.cursor()
         cur.execute(
             """

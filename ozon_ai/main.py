@@ -1,9 +1,11 @@
-﻿import shutil
+import os
+import shutil
 import sys
 from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication, QDialog
 
+from .ai import get_openai_api_key
 from .db import Database
 from .logging_utils import setup_logging
 from .ui.dialogs import ApiKeyDialog
@@ -34,11 +36,19 @@ def main() -> None:
     db.ensure_schema()
     ensure_defaults(db)
 
-    api_key = db.get_setting("openai_api_key")
-    if not api_key:
+    api_key = get_openai_api_key() or db.get_setting("openai_api_key")
+    env_key = get_openai_api_key()
+    if env_key and env_key != db.get_setting("openai_api_key"):
+        db.set_setting("openai_api_key", env_key)
+        api_key = env_key
+    if api_key:
+        os.environ.setdefault("OPENAI_API_KEY", api_key)
+    else:
         dialog = ApiKeyDialog()
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            db.set_setting("openai_api_key", dialog.key())
+            api_key = dialog.key()
+            db.set_setting("openai_api_key", api_key)
+            os.environ.setdefault("OPENAI_API_KEY", api_key)
         else:
             sys.exit(0)
 
