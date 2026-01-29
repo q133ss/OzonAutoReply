@@ -105,6 +105,20 @@ class Database:
         cur.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
         self.conn.commit()
 
+    def update_account_session(self, account_id: int, session_path: str, created_at: Optional[str] = None) -> None:
+        cur = self.conn.cursor()
+        if created_at is None:
+            cur.execute(
+                "UPDATE accounts SET session_path = ? WHERE id = ?",
+                (session_path, account_id),
+            )
+        else:
+            cur.execute(
+                "UPDATE accounts SET session_path = ?, created_at = ? WHERE id = ?",
+                (session_path, created_at, account_id),
+            )
+        self.conn.commit()
+
     def count_reviews(self) -> int:
         cur = self.conn.cursor()
         cur.execute("SELECT COUNT(*) FROM reviews")
