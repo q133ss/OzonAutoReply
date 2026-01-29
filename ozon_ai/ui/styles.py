@@ -10,74 +10,103 @@ QWidget {
 }
 
 #Chrome {
-    background: rgba(28, 30, 38, 180);
+    background: #1C1E26;
     border-radius: 18px;
 }
 
 QTabWidget::pane {
     border: none;
+    background: #1C1E26;
 }
 
 QTabBar::tab {
-    background: rgba(255, 255, 255, 22);
+    background: #2B2F3A;
     padding: 8px 16px;
     border-radius: 10px;
     margin-right: 6px;
 }
 
 QTabBar::tab:selected {
-    background: rgba(255, 255, 255, 48);
+    background: #3A3F4B;
 }
 
 QTabBar::tab:hover {
-    background: rgba(255, 255, 255, 60);
+    background: #424857;
 }
 
 QScrollArea {
-    background: transparent;
+    background: #1C1E26;
+    border-radius: 10px;
+}
+
+QScrollArea::viewport {
+    background: #1C1E26;
 }
 
 QListWidget {
-    background: rgba(0, 0, 0, 40);
+    background: #232833;
     border-radius: 10px;
     padding: 6px;
 }
 
 QLineEdit, QSpinBox, QPlainTextEdit {
-    background: rgba(0, 0, 0, 70);
-    border: 1px solid rgba(255, 255, 255, 35);
+    background: #2A2F3A;
+    border: 1px solid #3C4454;
     border-radius: 10px;
     padding: 6px 8px;
 }
 
 QPlainTextEdit {
-    selection-background-color: rgba(70, 130, 255, 140);
+    selection-background-color: rgba(70, 130, 255, 180);
 }
 
 QPushButton {
-    background: rgba(255, 255, 255, 28);
-    border: 1px solid rgba(255, 255, 255, 50);
+    background: #303644;
+    border: 1px solid #3F4758;
     border-radius: 10px;
     padding: 6px 14px;
 }
 
 QPushButton:hover {
-    background: rgba(255, 255, 255, 48);
+    background: #394152;
 }
 
 QPushButton:pressed {
-    background: rgba(255, 255, 255, 68);
+    background: #424C60;
 }
 
 #ReviewCard {
-    background: rgba(255, 255, 255, 18);
-    border: 1px solid rgba(255, 255, 255, 40);
+    background: #232833;
+    border: 1px solid #343B48;
     border-radius: 14px;
 }
 
+#ReviewList {
+    background: #1C1E26;
+}
+
+#ExamplesTab {
+    background: #1C1E26;
+}
+
+#ExamplesForm {
+    background: #1C1E26;
+}
+
+#ExamplesListContainer {
+    background: #1C1E26;
+}
+
+#ExamplesList {
+    background: #232833;
+    border: 1px solid #343B48;
+    border-radius: 10px;
+    padding: 6px;
+}
+
 #RatingBadge {
-    background: rgba(76, 140, 255, 80);
-    border: 1px solid rgba(76, 140, 255, 150);
+    background: #2F6BFF;
+    border: 1px solid #4D80FF;
     border-radius: 10px;
     padding: 2px 8px;
     min-width: 24px;
@@ -85,7 +114,7 @@ QPushButton:pressed {
 }
 
 #MetaText {
-    color: rgba(233, 234, 240, 160);
+    color: #B6BBC6;
 }
 
 #StatusLabel {
@@ -99,24 +128,24 @@ QPushButton:pressed {
 
 #WindowButton {
     border-radius: 7px;
-    background: rgba(255, 255, 255, 18);
+    background: #2B2F3A;
     font-size: 11pt;
     padding: 0px;
 }
 
 #WindowButton:hover {
-    background: rgba(255, 255, 255, 40);
+    background: #3A3F4B;
 }
 
 #CloseButton {
     border-radius: 7px;
     font-size: 11pt;
     padding: 0px;
-    background: rgba(255, 92, 92, 70);
-    border: 1px solid rgba(255, 120, 120, 140);
+    background: #D04B4B;
+    border: 1px solid #E07C7C;
 }
 
 #CloseButton:hover {
-    background: rgba(255, 92, 92, 120);
+    background: #E25C5C;
 }
 """
