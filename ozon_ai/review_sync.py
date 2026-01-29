@@ -65,6 +65,7 @@ def sync_new_reviews(db_path: Path) -> int:
         if not accounts:
             return 0
         known_uuids = db.list_review_uuids()
+        recent_responses = db.list_recent_ai_responses(limit=200)
         new_count = 0
         for account in accounts:
             session_path = account["session_path"]
@@ -88,9 +89,14 @@ def sync_new_reviews(db_path: Path) -> int:
                         examples=examples,
                         min_interval=min_interval,
                         max_interval=max_interval,
+                        avoid_responses=recent_responses,
                     )
                 rating = int(review.get("rating") or 0)
                 db.upsert_review(review, status="new", ai_response=ai_response, account_id=account["id"])
+                if ai_response:
+                    recent_responses.insert(0, ai_response)
+                    if len(recent_responses) > 200:
+                        del recent_responses[200:]
                 known_uuids.add(uuid)
                 new_count += 1
 
