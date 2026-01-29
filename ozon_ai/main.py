@@ -4,8 +4,6 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication, QDialog
 
-from .data.sample_reviews import SAMPLE_REVIEWS
-from .har_import import load_reviews_from_har
 from .db import Database
 from .logging_utils import setup_logging
 from .ui.dialogs import ApiKeyDialog
@@ -13,25 +11,13 @@ from .ui.main_window import MainWindow
 from .ui.styles import APP_STYLESHEET
 
 
-def ensure_defaults(db: Database, base_dir: Path) -> None:
+def ensure_defaults(db: Database) -> None:
     if db.get_setting("min_interval") is None:
         db.set_setting("min_interval", "10")
     if db.get_setting("max_interval") is None:
         db.set_setting("max_interval", "30")
 
-    existing_count = db.count_reviews()
-    har_reviews = []
-    for har_path in (base_dir / "newList.har", base_dir / "list.har"):
-        har_reviews = load_reviews_from_har(har_path)
-        if har_reviews:
-            break
-    if har_reviews and existing_count < len(har_reviews):
-        for review in har_reviews:
-            db.upsert_review(review, status="new")
-        return
-    if existing_count == 0:
-        for review in SAMPLE_REVIEWS:
-            db.upsert_review(review, status="new")
+    # Intentionally no review seeding; all reviews must come from the API.
 
 
 def main() -> None:
@@ -46,7 +32,7 @@ def main() -> None:
         shutil.copy2(legacy_db_path, db_path)
     db = Database(str(db_path))
     db.ensure_schema()
-    ensure_defaults(db, base_dir)
+    ensure_defaults(db)
 
     api_key = db.get_setting("openai_api_key")
     if not api_key:
