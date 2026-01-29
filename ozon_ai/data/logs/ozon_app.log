@@ -643,3 +643,13 @@ Traceback (most recent call last):
     app.exec()
     ~~~~~~~~^^
 KeyboardInterrupt
+2026-01-29 17:53:23 | INFO | env | Logging started at 2026-01-29T17:53:23
+2026-01-29 17:53:23 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 17:53:23 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 17:53:23 | INFO | env | Playwright: 1.57.0
+2026-01-29 17:53:23 | INFO | env | Playwright-stealth: 2.0.1
+2026-01-29 17:58:48 | INFO | env | Logging started at 2026-01-29T17:58:48
+2026-01-29 17:58:48 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 17:58:48 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 17:58:48 | INFO | env | Playwright: 1.57.0
+2026-01-29 17:58:48 | INFO | env | Playwright-stealth: 2.0.1

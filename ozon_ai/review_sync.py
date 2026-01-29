@@ -77,9 +77,12 @@ def sync_new_reviews(db_path: Path) -> int:
                     continue
                 ai_response = review.get("ai_response")
                 if not ai_response:
+                    rating = int(review.get("rating") or 0)
+                    examples = db.list_examples_for_rating(rating)
                     ai_response = generate_ai_response(
                         review,
                         api_key=api_key,
+                        examples=examples,
                         min_interval=min_interval,
                         max_interval=max_interval,
                     )

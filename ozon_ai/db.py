@@ -68,6 +68,38 @@ class Database:
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_examples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uuid TEXT,
+                status TEXT,
+                product_title TEXT,
+                product_url TEXT,
+                offer_id TEXT,
+                cover_image TEXT,
+                sku TEXT,
+                brand_id TEXT,
+                brand_name TEXT,
+                order_delivery_type TEXT,
+                text TEXT,
+                interaction_status TEXT,
+                rating INTEGER,
+                photos_count INTEGER,
+                videos_count INTEGER,
+                comments_count INTEGER,
+                published_at TEXT,
+                is_pinned INTEGER,
+                is_quality_control INTEGER,
+                chat_url TEXT,
+                is_delivery_review INTEGER,
+                ai_response TEXT,
+                user_response TEXT,
+                example_response TEXT,
+                created_at TEXT
+            )
+            """
+        )
         self.conn.commit()
 
     def get_setting(self, key: str) -> Optional[str]:
@@ -197,4 +229,67 @@ class Database:
             """,
             (status, response, uuid),
         )
+        self.conn.commit()
+
+    def list_examples(self) -> List[Dict[str, Any]]:
+        cur = self.conn.cursor()
+        cur.execute("SELECT * FROM ai_examples ORDER BY id DESC")
+        return [dict(row) for row in cur.fetchall()]
+
+    def list_examples_for_rating(self, rating: int, limit: int = 3) -> List[Dict[str, Any]]:
+        cur = self.conn.cursor()
+        cur.execute(
+            "SELECT * FROM ai_examples WHERE rating = ? ORDER BY id DESC LIMIT ?",
+            (rating, limit),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+    def save_example(self, data: Dict[str, Any], example_id: Optional[int] = None) -> int:
+        fields = [
+            "uuid",
+            "status",
+            "product_title",
+            "product_url",
+            "offer_id",
+            "cover_image",
+            "sku",
+            "brand_id",
+            "brand_name",
+            "order_delivery_type",
+            "text",
+            "interaction_status",
+            "rating",
+            "photos_count",
+            "videos_count",
+            "comments_count",
+            "published_at",
+            "is_pinned",
+            "is_quality_control",
+            "chat_url",
+            "is_delivery_review",
+            "ai_response",
+            "user_response",
+            "example_response",
+            "created_at",
+        ]
+        values = [data.get(field) for field in fields]
+        cur = self.conn.cursor()
+        if example_id is None:
+            placeholders = ", ".join("?" for _ in fields)
+            cur.execute(
+                f"INSERT INTO ai_examples ({', '.join(fields)}) VALUES ({placeholders})",
+                values,
+            )
+            self.conn.commit()
+            return int(cur.lastrowid)
+        cur.execute(
+            f"UPDATE ai_examples SET {', '.join(f'{field} = ?' for field in fields)} WHERE id = ?",
+            values + [example_id],
+        )
+        self.conn.commit()
+        return example_id
+
+    def delete_example(self, example_id: int) -> None:
+        cur = self.conn.cursor()
+        cur.execute("DELETE FROM ai_examples WHERE id = ?", (example_id,))
         self.conn.commit()

@@ -16,6 +16,7 @@ from ..db import Database
 from ..review_sync import ReviewsPoller
 from .tabs.accounts import AccountsTab
 from .tabs.reviews import ReviewsTab
+from .tabs.examples import ExamplesTab
 from .tabs.settings import SettingsTab
 from .title_bar import TitleBar
 
@@ -57,6 +58,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(AccountsTab(db), "Аккаунты")
         self.reviews_tab = ReviewsTab(db)
         tabs.addTab(self.reviews_tab, "Отзывы")
+        tabs.addTab(ExamplesTab(db), "Примеры для ИИ")
         tabs.addTab(SettingsTab(db), "Настройки")
         chrome_layout.addWidget(tabs)
 
