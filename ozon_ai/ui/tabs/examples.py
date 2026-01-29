@@ -25,6 +25,7 @@ class ExamplesTab(QWidget):
     def __init__(self, db: Database) -> None:
         super().__init__()
         self.db = db
+        self.setObjectName("ExamplesTab")
         self._current_id: Optional[int] = None
         self._inputs: Dict[str, Any] = {}
         self._default_rating = 1
@@ -33,6 +34,7 @@ class ExamplesTab(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         form_container = QWidget()
+        form_container.setObjectName("ExamplesForm")
         form_layout = QVBoxLayout(form_container)
         form_layout.setContentsMargins(0, 0, 0, 0)
         form_layout.setSpacing(10)
@@ -68,11 +70,13 @@ class ExamplesTab(QWidget):
         scroll.setWidget(form_container)
 
         list_container = QWidget()
+        list_container.setObjectName("ExamplesListContainer")
         list_layout = QVBoxLayout(list_container)
         list_layout.setContentsMargins(0, 0, 0, 0)
         list_layout.setSpacing(6)
         list_layout.addWidget(QLabel("Примеры"))
         self.examples_list = QListWidget()
+        self.examples_list.setObjectName("ExamplesList")
         self.examples_list.itemSelectionChanged.connect(self._on_select)
         list_layout.addWidget(self.examples_list)
 

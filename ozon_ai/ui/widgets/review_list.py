@@ -4,6 +4,7 @@
 class ReviewList(QWidget):
     def __init__(self) -> None:
         super().__init__()
+        self.setObjectName("ReviewList")
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(12)
