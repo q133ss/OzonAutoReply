@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -23,6 +24,65 @@ DEFAULT_XO3_HEADERS = {
     "x-o3-language": "ru",
     "x-o3-page-type": "review",
 }
+AUTH_MARKER_SUFFIX = ".relogin"
+
+
+def _auth_marker_path(session_path: Path) -> Path:
+    return session_path.with_suffix(session_path.suffix + AUTH_MARKER_SUFFIX)
+
+
+def _mark_session_needs_relogin(session_path: Path, reason: str) -> None:
+    try:
+        _auth_marker_path(session_path).write_text(reason, encoding="utf-8")
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to write relogin marker for %s", session_path)
+
+
+def _clear_session_needs_relogin(session_path: Path) -> None:
+    try:
+        _auth_marker_path(session_path).unlink(missing_ok=True)
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to remove relogin marker for %s", session_path)
+
+
+def _looks_like_html(text: str) -> bool:
+    if not text:
+        return False
+    sample = text.lstrip()[:200].lower()
+    return "<html" in sample or "<!doctype" in sample or "</html>" in sample or "<script" in sample
+
+
+def _is_auth_failure(status: int, body: Optional[str], content_type: Optional[str]) -> bool:
+    if status in {401, 403}:
+        return True
+    if content_type and "text/html" in content_type.lower():
+        return True
+    if body and _looks_like_html(body):
+        return True
+    return False
+
+
+def _session_needs_relogin(session_path: Path, storage_state: Optional[Dict[str, Any]] = None) -> bool:
+    if _auth_marker_path(session_path).exists():
+        return True
+    if storage_state is None:
+        storage_state = _load_storage_state(session_path) or {}
+    cookies = storage_state.get("cookies") or []
+    token_names = {"__Secure-access-token", "__Secure-refresh-token"}
+    now = time.time()
+    found_token = False
+    for cookie in cookies:
+        if cookie.get("name") not in token_names:
+            continue
+        found_token = True
+        expires = cookie.get("expires")
+        try:
+            expires_value = float(expires)
+        except (TypeError, ValueError):
+            continue
+        if expires_value > 0 and expires_value < now:
+            return True
+    return not found_token
 
 
 def _load_storage_state(session_path: Path) -> Optional[Dict[str, Any]]:
@@ -254,18 +314,27 @@ def fetch_all_new_reviews(session_path: Path, timeout: int = 20) -> List[Dict[st
                         data=json.dumps(payload),
                         timeout=timeout * 1000,
                     )
+                    content_type = response.headers.get("content-type") or response.headers.get("Content-Type")
+                    body_text: Optional[str] = None
                     if not response.ok:
+                        body_text = response.text()
+                        if _is_auth_failure(response.status, body_text, content_type):
+                            _mark_session_needs_relogin(session_path, f"status={response.status}")
                         logging.getLogger(__name__).warning(
                             "Review request failed: status=%s body=%s",
                             response.status,
-                            response.text(),
+                            body_text,
                         )
                         break
                     try:
                         page = response.json()
                     except Exception:
+                        body_text = body_text or response.text()
+                        if _is_auth_failure(response.status, body_text, content_type):
+                            _mark_session_needs_relogin(session_path, "invalid_json_html")
                         logging.getLogger(__name__).exception("Failed to parse review response JSON")
                         break
+                    _clear_session_needs_relogin(session_path)
                     page_reviews, has_next, last_review = _extract_reviews_payload(page)
                     for review in page_reviews:
                         if not isinstance(review, dict):
