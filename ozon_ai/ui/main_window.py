@@ -55,7 +55,8 @@ class MainWindow(QMainWindow):
         chrome_layout.addWidget(title_bar)
 
         tabs = QTabWidget()
-        tabs.addTab(AccountsTab(db), "Аккаунты")
+        self.accounts_tab = AccountsTab(db)
+        tabs.addTab(self.accounts_tab, "Аккаунты")
         self.reviews_tab = ReviewsTab(db)
         tabs.addTab(self.reviews_tab, "Отзывы")
         tabs.addTab(ExamplesTab(db), "Примеры для ИИ")
@@ -79,3 +80,4 @@ class MainWindow(QMainWindow):
         if new_count > 0:
             self._logger.info("Added %s new reviews", new_count)
             self.reviews_tab.refresh()
+        self.accounts_tab.refresh()

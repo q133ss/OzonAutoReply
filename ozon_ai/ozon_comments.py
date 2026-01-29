@@ -9,8 +9,11 @@ from .ozon_reviews import (
     _build_headers,
     _extract_company_id,
     _find_latest_har,
+    _is_auth_failure,
+    _mark_session_needs_relogin,
     _load_review_template,
     _load_storage_state,
+    _clear_session_needs_relogin,
 )
 
 
@@ -101,20 +104,30 @@ def send_review_comment(
                     data=json.dumps(payload),
                     timeout=timeout * 1000,
                 )
+                content_type = response.headers.get("content-type") or response.headers.get("Content-Type")
+                body_text: Optional[str] = None
                 if not response.ok:
+                    body_text = response.text()
+                    if _is_auth_failure(response.status, body_text, content_type):
+                        _mark_session_needs_relogin(session_path, f"comment_status={response.status}")
                     logging.getLogger(__name__).warning(
                         "Comment request failed: status=%s body=%s",
                         response.status,
-                        response.text(),
+                        body_text,
                     )
                     return False
                 try:
                     payload = response.json()
                 except Exception:
+                    body_text = body_text or response.text()
+                    if _is_auth_failure(response.status, body_text, content_type):
+                        _mark_session_needs_relogin(session_path, "comment_invalid_json_html")
+                        return False
                     return True
                 if isinstance(payload, dict) and payload.get("error"):
                     logging.getLogger(__name__).warning("Comment request error: %s", payload.get("error"))
                     return False
+                _clear_session_needs_relogin(session_path)
                 return True
             finally:
                 request_context.dispose()

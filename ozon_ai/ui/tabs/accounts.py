@@ -69,7 +69,7 @@ class AccountsTab(QWidget):
         name_label = QLabel(name)
         layout.addWidget(name_label, 1)
 
-        status_label = QLabel("Активен" if is_active else "Не активен")
+        status_label = QLabel("Активно" if is_active else "Перезайти")
         status_label.setObjectName("StatusLabel" if is_active else "MetaText")
         layout.addWidget(status_label)
 
@@ -86,10 +86,12 @@ class AccountsTab(QWidget):
         if not path.exists():
             return False
         try:
-            from ...ozon_reviews import _extract_company_id, _load_storage_state
+            from ...ozon_reviews import _extract_company_id, _load_storage_state, _session_needs_relogin
 
             storage_state = _load_storage_state(path)
             if not storage_state:
+                return False
+            if _session_needs_relogin(path, storage_state):
                 return False
             return _extract_company_id(storage_state) is not None
         except Exception:
@@ -106,6 +108,9 @@ class AccountsTab(QWidget):
             if not Path(dialog.session_path).exists():
                 QMessageBox.warning(self, "Сессия не найдена", "Файл сессии не создан. Проверьте лог.")
                 return
+            from ...ozon_reviews import _clear_session_needs_relogin
+
+            _clear_session_needs_relogin(Path(dialog.session_path))
             created_at = dialog.created_at or datetime.now().isoformat(timespec="seconds")
             self.db.add_account(dialog.account_name, dialog.session_path, created_at)
             self.refresh()
@@ -121,6 +126,9 @@ class AccountsTab(QWidget):
         if not Path(dialog.session_path).exists():
             QMessageBox.warning(self, "Сессия не найдена", "Файл сессии не создан. Проверьте лог.")
             return
+        from ...ozon_reviews import _clear_session_needs_relogin
+
+        _clear_session_needs_relogin(Path(dialog.session_path))
         created_at = dialog.created_at or datetime.now().isoformat(timespec="seconds")
         self.db.update_account_session(account_id, dialog.session_path, created_at)
         self.refresh()
