@@ -102,7 +102,7 @@ def _fallback_response(review: Dict[str, Any]) -> str:
     )
 
 
-def _build_user_input(review: Dict[str, Any]) -> str:
+def _build_user_input(review: Dict[str, Any], examples: Optional[list[Dict[str, Any]]] = None) -> str:
     rating = review.get("rating", 0) or 0
     text = (review.get("text") or "").strip() or "[без текста]"
     product = review.get("product", {}) or {}
@@ -113,6 +113,26 @@ def _build_user_input(review: Dict[str, Any]) -> str:
         parts.append(f"Товар: {title}.")
     if is_delivery:
         parts.append("Отзыв относится к доставке.")
+    if examples:
+        formatted = []
+        for idx, example in enumerate(examples, start=1):
+            ex_title = (example.get("product_title") or "").strip()
+            ex_rating = example.get("rating")
+            ex_text = (example.get("text") or "").strip()
+            ex_answer = (example.get("example_response") or "").strip()
+            if not ex_text or not ex_answer:
+                continue
+            chunk = [f"Пример {idx}."]
+            if ex_title:
+                chunk.append(f"Товар: {ex_title}.")
+            if ex_rating:
+                chunk.append(f"Оценка: {ex_rating}/5.")
+            chunk.append(f"Отзыв: {ex_text}")
+            chunk.append(f"Ответ: {ex_answer}")
+            formatted.append(" ".join(chunk))
+        if formatted:
+            parts.append("Примеры ответов (не копировать дословно, придерживаться стиля):")
+            parts.extend(formatted)
     return " ".join(parts)
 
 
@@ -175,6 +195,7 @@ def generate_ai_response(
     *,
     api_key: Optional[str] = None,
     model: Optional[str] = None,
+    examples: Optional[list[Dict[str, Any]]] = None,
     min_interval: int = 10,
     max_interval: int = 30,
     timeout: int = _DEFAULT_TIMEOUT,
@@ -184,7 +205,7 @@ def generate_ai_response(
         return _fallback_response(review)
 
     model = model or get_openai_model()
-    prompt = _build_user_input(review)
+    prompt = _build_user_input(review, examples=examples)
     logger = logging.getLogger(__name__)
 
     _rate_limiter.throttle(min_interval, max_interval)
