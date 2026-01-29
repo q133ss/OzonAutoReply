@@ -1,9 +1,6 @@
 ﻿import sqlite3
 from typing import Any, Dict, List, Optional, Set
 
-from .ai import generate_ai_response
-
-
 class Database:
     def __init__(self, path: str) -> None:
         self.path = path
@@ -177,7 +174,7 @@ class Database:
         brand = product.get("brand_info", {})
         if account_id is None:
             account_id = review.get("account_id")
-        ai_response = ai_response or review.get("ai_response") or generate_ai_response(review)
+        ai_response = ai_response or review.get("ai_response")
         cur = self.conn.cursor()
         cur.execute(
             """
@@ -235,6 +232,20 @@ class Database:
             (status,),
         )
         return [dict(row) for row in cur.fetchall()]
+
+    def list_recent_ai_responses(self, limit: int = 100) -> List[str]:
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            SELECT ai_response
+            FROM reviews
+            WHERE ai_response IS NOT NULL AND ai_response != ''
+            ORDER BY published_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        return [row[0] for row in cur.fetchall() if row[0]]
 
     def update_review_status(self, uuid: str, status: str, response: str) -> None:
         cur = self.conn.cursor()

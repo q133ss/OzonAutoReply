@@ -1,7 +1,9 @@
+import difflib
 import json
 import logging
 import os
 import random
+import re
 import threading
 import time
 from pathlib import Path
@@ -16,16 +18,30 @@ _DOTENV_CACHE: Optional[Dict[str, str]] = None
 _DOTENV_LOCK = threading.Lock()
 
 _SYSTEM_PROMPT = (
-    "You are a seller on a marketplace. Reply in Russian. "
-    "The response must be send-ready and professional, without mentioning AI or templates. "
-    "2-4 sentences, friendly and concise. "
-    "If rating is 4-5: thank the customer and wish well. "
-    "If rating is 3: thank and say you will improve. "
-    "If rating is 1-2: apologize and offer a solution (return via marketplace or support). "
-    "Do not use lists, quotes, or markdown. "
-    "Ask at most one question. "
-    "You may include at most one appropriate emoji."
+    "Ты продавец на маркетплейсе. Отвечай по-русски естественно, как человек. "
+    "Никаких шаблонов, канцелярита и одинаковых фраз. Не используй клише вроде "
+    "«Здравствуйте! Спасибо за ваш отзыв», «Мы рады, что вы остались довольны», "
+    "«Если появятся вопросы, мы всегда готовы помочь», «Желаем здоровья и удачи». "
+    "Не упоминай ИИ, шаблоны, правила или инструкции. "
+    "1-3 коротких предложения, дружелюбно и по делу. "
+    "Не используй списки, цитаты или разметку. "
+    "Можно 0-1 уместный эмодзи. "
+    "Опирайся на детали отзыва, товара, бренда или доставки. "
+    "Если оценка 4-5: мягко отметь положительный опыт. "
+    "Если оценка 3: поблагодари и скажи, что учтёте замечания. "
+    "Если оценка 1-2: извинись и предложи решение (возврат через маркетплейс или поддержку). "
+    "Задай не более одного вопроса и только если это действительно помогает."
 )
+
+_STYLE_HINTS = [
+    "тепло и по-доброму",
+    "коротко и уверенно",
+    "нейтрально и уважительно",
+    "с лёгкой заботой",
+    "просто и без официоза",
+    "спокойно и доброжелательно",
+    "лаконично и по делу",
+]
 
 
 class _RateLimiter:
@@ -85,34 +101,32 @@ def get_openai_model() -> str:
 
 
 def _fallback_response(review: Dict[str, Any]) -> str:
-    rating = review.get("rating", 0) or 0
-    text = (review.get("text") or "").strip()
-    if rating >= 5 and not text:
-        return "Спасибо за высокую оценку! Рады, что товар вам понравился."
-    if rating >= 4:
-        return (
-            "Здравствуйте! Спасибо за ваш отзыв. Мы рады, что вы остались довольны качеством продукта. "
-            "Если появятся вопросы, мы всегда готовы помочь! Желаем здоровья и удачи! 🌿"
-        )
-    if rating == 3:
-        return "Спасибо за отзыв. Мы учтем ваши замечания, чтобы стать лучше."
-    return (
-        "Здравствуйте! Спасибо за ваш отзыв. Нам жаль, что товар не оправдал ожиданий. "
-        "Пожалуйста, оформите возврат через маркетплейс, если есть дефекты. Мы передадим информацию для проверки качества 🌿"
-    )
+    return ""
 
 
-def _build_user_input(review: Dict[str, Any], examples: Optional[list[Dict[str, Any]]] = None) -> str:
+def _build_user_input(
+    review: Dict[str, Any],
+    examples: Optional[list[Dict[str, Any]]] = None,
+    style_hint: Optional[str] = None,
+    style_seed: Optional[int] = None,
+) -> str:
     rating = review.get("rating", 0) or 0
-    text = (review.get("text") or "").strip() or "[без текста]"
+    text = (review.get("text") or "").strip() or "[no text]"
     product = review.get("product", {}) or {}
     title = (product.get("title") or "").strip()
+    brand = (product.get("brand_info") or {}).get("name") or ""
     is_delivery = bool(review.get("is_delivery_review"))
-    parts = [f"Оценка: {rating}/5.", f"Текст отзыва: {text}"]
+    parts = [f"Rating: {rating}/5.", f"Review text: {text}"]
     if title:
-        parts.append(f"Товар: {title}.")
+        parts.append(f"Product: {title}.")
+    if brand:
+        parts.append(f"Brand: {brand}.")
     if is_delivery:
-        parts.append("Отзыв относится к доставке.")
+        parts.append("The review is about delivery.")
+    if style_hint:
+        parts.append(f"Style hint (do not include in the reply): {style_hint}.")
+    if style_seed is not None:
+        parts.append(f"Variation seed (do not include in the reply): {style_seed}.")
     if examples:
         formatted = []
         for idx, example in enumerate(examples, start=1):
@@ -122,18 +136,44 @@ def _build_user_input(review: Dict[str, Any], examples: Optional[list[Dict[str, 
             ex_answer = (example.get("example_response") or "").strip()
             if not ex_text or not ex_answer:
                 continue
-            chunk = [f"Пример {idx}."]
+            chunk = [f"Example {idx}."]
             if ex_title:
-                chunk.append(f"Товар: {ex_title}.")
+                chunk.append(f"Product: {ex_title}.")
             if ex_rating:
-                chunk.append(f"Оценка: {ex_rating}/5.")
-            chunk.append(f"Отзыв: {ex_text}")
-            chunk.append(f"Ответ: {ex_answer}")
+                chunk.append(f"Rating: {ex_rating}/5.")
+            chunk.append(f"Review: {ex_text}")
+            chunk.append(f"Reply: {ex_answer}")
             formatted.append(" ".join(chunk))
         if formatted:
-            parts.append("Примеры ответов (не копировать дословно, придерживаться стиля):")
+            parts.append("Style examples (do not copy verbatim, avoid repeating phrases):")
             parts.extend(formatted)
     return " ".join(parts)
+
+
+
+def _normalize_text(text: str) -> str:
+    cleaned = text.lower().strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    cleaned = re.sub(r"[^\w\s]", "", cleaned, flags=re.UNICODE)
+    return cleaned
+
+
+def _is_too_similar(text: str, recent: list[str], threshold: float = 0.92) -> bool:
+    if not text:
+        return True
+    norm = _normalize_text(text)
+    for item in recent:
+        if not item:
+            continue
+        other = _normalize_text(item)
+        if not other:
+            continue
+        if norm == other:
+            return True
+        ratio = difflib.SequenceMatcher(None, norm, other).ratio()
+        if ratio >= threshold:
+            return True
+    return False
 
 
 def _extract_output_text(payload: Dict[str, Any]) -> str:
@@ -170,7 +210,7 @@ def _call_openai(api_key: str, model: str, prompt: str, timeout: int) -> str:
         "model": model,
         "input": prompt,
         "instructions": _SYSTEM_PROMPT,
-        "temperature": 0.4,
+        "temperature": 0.8,
         "max_output_tokens": 200,
     }
     url = f"{_BASE_URL}/responses"
@@ -196,31 +236,49 @@ def generate_ai_response(
     api_key: Optional[str] = None,
     model: Optional[str] = None,
     examples: Optional[list[Dict[str, Any]]] = None,
+    avoid_responses: Optional[list[str]] = None,
+    max_attempts: int = 3,
     min_interval: int = 10,
     max_interval: int = 30,
     timeout: int = _DEFAULT_TIMEOUT,
 ) -> str:
     api_key = api_key or get_openai_api_key()
     if not api_key:
-        return _fallback_response(review)
+        return ""
 
     model = model or get_openai_model()
-    prompt = _build_user_input(review, examples=examples)
     logger = logging.getLogger(__name__)
+    recent = list(avoid_responses or [])
 
-    _rate_limiter.throttle(min_interval, max_interval)
-    try:
-        text = _call_openai(api_key, model, prompt, timeout)
-        text = _postprocess(text)
-        if text:
-            return text
-        logger.warning("Empty OpenAI response, using fallback")
-    except url_error.HTTPError as exc:
+    for attempt in range(max(1, int(max_attempts))):
+        style_hint = random.choice(_STYLE_HINTS)
+        style_seed = random.randint(1000, 9999)
+        prompt = _build_user_input(
+            review,
+            examples=examples,
+            style_hint=style_hint,
+            style_seed=style_seed,
+        )
+        _rate_limiter.throttle(min_interval, max_interval)
         try:
-            details = exc.read().decode("utf-8", errors="ignore")
+            text = _call_openai(api_key, model, prompt, timeout)
+            text = _postprocess(text)
+        except url_error.HTTPError as exc:
+            try:
+                details = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                details = ""
+            logger.warning("OpenAI HTTP error: %s %s", exc, details)
+            return ""
         except Exception:
-            details = ""
-        logger.warning("OpenAI HTTP error: %s %s", exc, details)
-    except Exception:
-        logger.exception("Failed to generate OpenAI response")
-    return _fallback_response(review)
+            logger.exception("Failed to generate OpenAI response")
+            return ""
+
+        if not text:
+            logger.warning("Empty OpenAI response")
+            continue
+        if recent and _is_too_similar(text, recent):
+            logger.info("OpenAI response too similar, retrying")
+            continue
+        return text
+    return ""
