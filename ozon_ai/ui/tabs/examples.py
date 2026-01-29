@@ -36,7 +36,7 @@ class ExamplesTab(QWidget):
         form_container = QWidget()
         form_container.setObjectName("ExamplesForm")
         form_layout = QVBoxLayout(form_container)
-        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setContentsMargins(0, 10, 0, 0)
         form_layout.setSpacing(10)
 
         form = QFormLayout()

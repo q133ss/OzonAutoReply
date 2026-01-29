@@ -56,6 +56,51 @@ QLineEdit, QSpinBox, QPlainTextEdit {
     padding: 6px 8px;
 }
 
+QSpinBox {
+    padding-right: 24px;
+}
+
+QSpinBox::up-button, QSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 20px;
+    background: #2F3543;
+    border-left: 1px solid #3C4454;
+}
+
+QSpinBox::up-button {
+    subcontrol-position: top right;
+    border-top-right-radius: 10px;
+}
+
+QSpinBox::down-button {
+    subcontrol-position: bottom right;
+    border-bottom-right-radius: 10px;
+}
+
+QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+    background: #394152;
+}
+
+QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {
+    background: #424C60;
+}
+
+QSpinBox::up-arrow {
+    width: 0px;
+    height: 0px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 6px solid #E9EAF0;
+}
+
+QSpinBox::down-arrow {
+    width: 0px;
+    height: 0px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #E9EAF0;
+}
+
 QPlainTextEdit {
     selection-background-color: rgba(70, 130, 255, 180);
 }
