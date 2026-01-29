@@ -18,6 +18,11 @@ def ensure_defaults(db: Database) -> None:
         db.set_setting("min_interval", "10")
     if db.get_setting("max_interval") is None:
         db.set_setting("max_interval", "30")
+    if db.get_setting("auto_send_enabled") is None:
+        db.set_setting("auto_send_enabled", "0")
+    if db.get_setting("send_interval") is None:
+        db.set_setting("send_interval", "5")
+
 
     # Intentionally no review seeding; all reviews must come from the API.
 
