@@ -653,3 +653,38 @@ KeyboardInterrupt
 2026-01-29 17:58:48 | INFO | env | Platform: Windows-11-10.0.26100-SP0
 2026-01-29 17:58:48 | INFO | env | Playwright: 1.57.0
 2026-01-29 17:58:48 | INFO | env | Playwright-stealth: 2.0.1
+2026-01-29 18:27:21 | INFO | env | Logging started at 2026-01-29T18:27:21
+2026-01-29 18:27:21 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 18:27:21 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 18:27:21 | INFO | env | Playwright: 1.57.0
+2026-01-29 18:27:21 | INFO | env | Playwright-stealth: 2.0.1
+2026-01-29 18:28:56 | INFO | env | Logging started at 2026-01-29T18:28:56
+2026-01-29 18:28:56 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 18:28:56 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 18:28:56 | INFO | env | Playwright: 1.57.0
+2026-01-29 18:28:56 | INFO | env | Playwright-stealth: 2.0.1
+2026-01-29 18:32:52 | ERROR | uncaught | Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\lexa3\Desktop\ozonQt\app.py", line 5, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\lexa3\Desktop\ozonQt\ozon_ai\main.py", line 57, in main
+    app.exec()
+    ~~~~~~~~^^
+KeyboardInterrupt
+2026-01-29 18:55:05 | INFO | env | Logging started at 2026-01-29T18:55:05
+2026-01-29 18:55:05 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 18:55:05 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 18:55:05 | INFO | env | Playwright: 1.57.0
+2026-01-29 18:55:05 | INFO | env | Playwright-stealth: 2.0.1
+2026-01-29 18:57:05 | ERROR | uncaught | Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\lexa3\Desktop\ozonQt\ozon_ai\review_sync.py", line 32, in poll
+    def poll(self) -> None:
+    
+KeyboardInterrupt
+2026-01-29 18:57:59 | INFO | env | Logging started at 2026-01-29T18:57:59
+2026-01-29 18:57:59 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-01-29 18:57:59 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-01-29 18:57:59 | INFO | env | Playwright: 1.57.0
+2026-01-29 18:57:59 | INFO | env | Playwright-stealth: 2.0.1

@@ -7,6 +7,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from .ai import generate_ai_response, get_openai_api_key
 from .db import Database
+from .ozon_comments import send_review_comment
 from .ozon_reviews import fetch_all_new_reviews
 
 
@@ -58,6 +59,8 @@ def sync_new_reviews(db_path: Path) -> int:
         max_interval = int(db.get_setting("max_interval") or 30)
         if max_interval < min_interval:
             max_interval = min_interval
+        send_interval = int(db.get_setting("send_interval") or 5)
+        auto_send_enabled = (db.get_setting("auto_send_enabled") or "0").lower() in {"1", "true", "yes", "on"}
         accounts = db.list_accounts()
         if not accounts:
             return 0
@@ -86,9 +89,22 @@ def sync_new_reviews(db_path: Path) -> int:
                         min_interval=min_interval,
                         max_interval=max_interval,
                     )
-                db.upsert_review(review, status="new", ai_response=ai_response)
+                rating = int(review.get("rating") or 0)
+                db.upsert_review(review, status="new", ai_response=ai_response, account_id=account["id"])
                 known_uuids.add(uuid)
                 new_count += 1
+
+                if auto_send_enabled and rating >= 4 and ai_response:
+                    success = send_review_comment(
+                        session_file,
+                        uuid,
+                        ai_response,
+                        throttle_interval=send_interval,
+                    )
+                    if success:
+                        db.update_review_status(uuid, "completed", ai_response)
+                    else:
+                        logging.getLogger(__name__).warning("Auto-send failed for review %s", uuid)
         return new_count
     finally:
         db.close()

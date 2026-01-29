@@ -44,6 +44,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS reviews (
                 uuid TEXT PRIMARY KEY,
                 status TEXT NOT NULL,
+                account_id INTEGER,
                 product_title TEXT,
                 product_url TEXT,
                 offer_id TEXT,
@@ -68,6 +69,10 @@ class Database:
             )
             """
         )
+        cur.execute("PRAGMA table_info(reviews)")
+        review_columns = {row["name"] for row in cur.fetchall()}
+        if "account_id" not in review_columns:
+            cur.execute("ALTER TABLE reviews ADD COLUMN account_id INTEGER")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_examples (
@@ -161,31 +166,41 @@ class Database:
         cur.execute("SELECT uuid FROM reviews")
         return {row[0] for row in cur.fetchall()}
 
-    def upsert_review(self, review: Dict[str, Any], status: str = "new", ai_response: Optional[str] = None) -> None:
+    def upsert_review(
+        self,
+        review: Dict[str, Any],
+        status: str = "new",
+        ai_response: Optional[str] = None,
+        account_id: Optional[int] = None,
+    ) -> None:
         product = review.get("product", {})
         brand = product.get("brand_info", {})
+        if account_id is None:
+            account_id = review.get("account_id")
         ai_response = ai_response or review.get("ai_response") or generate_ai_response(review)
         cur = self.conn.cursor()
         cur.execute(
             """
             INSERT INTO reviews (
-                uuid, status, product_title, product_url, offer_id, cover_image, sku,
+                uuid, status, account_id, product_title, product_url, offer_id, cover_image, sku,
                 brand_id, brand_name, order_delivery_type, text, interaction_status,
                 rating, photos_count, videos_count, comments_count, published_at,
                 is_pinned, is_quality_control, chat_url, is_delivery_review, ai_response, user_response
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             ON CONFLICT(uuid) DO UPDATE SET
                 status = CASE
                     WHEN reviews.status = 'completed' THEN reviews.status
                     ELSE excluded.status
                 END,
+                account_id = excluded.account_id,
                 ai_response = excluded.ai_response
             """,
             (
                 review.get("uuid"),
                 status,
+                account_id,
                 product.get("title"),
                 product.get("url"),
                 product.get("offer_id"),
@@ -230,6 +245,17 @@ class Database:
             (status, response, uuid),
         )
         self.conn.commit()
+
+    def get_review(self, uuid: str) -> Optional[Dict[str, Any]]:
+        cur = self.conn.cursor()
+        cur.execute("SELECT * FROM reviews WHERE uuid = ?", (uuid,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+    def get_account(self, account_id: int) -> Optional[sqlite3.Row]:
+        cur = self.conn.cursor()
+        cur.execute("SELECT id, name, session_path, created_at FROM accounts WHERE id = ?", (account_id,))
+        return cur.fetchone()
 
     def list_examples(self) -> List[Dict[str, Any]]:
         cur = self.conn.cursor()
