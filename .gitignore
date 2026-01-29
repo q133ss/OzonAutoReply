@@ -4,3 +4,9 @@ dist/
 build/
 *.spec
 *.exe
+*.relogin
+
+# Playwright browsers (Windows too)
+playwright-browsers/
+**/playwright-browsers/
+**/.playwright/
