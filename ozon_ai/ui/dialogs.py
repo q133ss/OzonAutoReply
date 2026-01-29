@@ -172,23 +172,36 @@ class AccountSessionDialog(QDialog):
 
     def _start_runner(self) -> None:
         log_path = get_log_path()
-        args = [
-            "-m",
-            "ozon_ai.playwright_runner",
-            "--url",
-            self.url,
-            "--control-path",
-            str(self._control_path),
-            "--status-path",
-            str(self._status_path),
-        ]
+        if getattr(sys, 'frozen', False):
+            args = [
+                '--run-playwright-runner',
+                '--url',
+                self.url,
+                '--control-path',
+                str(self._control_path),
+                '--status-path',
+                str(self._status_path),
+            ]
+            workdir = Path(sys.executable).resolve().parent
+        else:
+            args = [
+                '-m',
+                'ozon_ai.playwright_runner',
+                '--url',
+                self.url,
+                '--control-path',
+                str(self._control_path),
+                '--status-path',
+                str(self._status_path),
+            ]
+            workdir = Path(__file__).resolve().parents[2]
         if log_path:
-            args.extend(["--log-path", str(log_path)])
-        self._logger.info("Starting Playwright runner")
-        self._process.setWorkingDirectory(str(Path(__file__).resolve().parents[2]))
+            args.extend(['--log-path', str(log_path)])
+        self._logger.info('Starting Playwright runner')
+        self._process.setWorkingDirectory(str(workdir))
         self._process.start(sys.executable, args)
         if not self._process.waitForStarted(5000):
-            self._on_error("Не удалось запустить Playwright процесс.")
+            self._on_error('???? ?????????????? ?????????????????? Playwright ??????????????.')
 
     def _write_command(self, payload: dict) -> None:
         try:
