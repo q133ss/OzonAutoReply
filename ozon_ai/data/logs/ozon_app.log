@@ -1569,3 +1569,8 @@ KeyboardInterrupt
 2026-01-29 22:16:04 | INFO | playwright.runner | Storage state saved
 2026-01-29 22:16:04 | INFO | playwright.dialog | runner: 2026-01-29 22:16:04 | INFO | playwright.runner | Storage state saved
 2026-01-29 22:16:05 | INFO | playwright.dialog | Playwright runner finished. code=0 status=ExitStatus.NormalExit
+2026-02-07 04:36:24 | INFO | env | Logging started at 2026-02-07T04:36:24
+2026-02-07 04:36:24 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-02-07 04:36:24 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-02-07 04:36:24 | INFO | env | Playwright: 1.58.0
+2026-02-07 04:36:24 | INFO | env | Playwright-stealth: 2.0.1

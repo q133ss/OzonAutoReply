@@ -1,23 +1,36 @@
+![Screenshot](screenshot.png)
 # OzonAutoReply
+[English](#english)
 
-## Build (PyInstaller, браузер Playwright включен)
+OzonAutoReply — десктопное приложение для селлеров Ozon (PyQt6): загружает новые отзывы, генерирует ответы через OpenAI и (опционально) автоматически публикует их. Хранение в SQLite, управление аккаунтами/шаблонами/настройками, сборка в .exe через PyInstaller.
 
-1) Активируйте venv и установите зависимости (если еще не установлены):
-```
+## Стек
+- Python 3
+- PyQt6 (GUI)
+- Playwright (загрузка отзывов из кабинета Ozon)
+- OpenAI API (генерация ответов)
+- SQLite (локальное хранилище)
+- PyInstaller (сборка в exe)
+
+## Запуск
+1. Создайте и активируйте виртуальное окружение.
+2. Установите зависимости.
+3. Установите браузер для Playwright.
+4. Запустите приложение.
+
+```powershell
+python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
-pip install pyinstaller
+python -m playwright install chromium
+python app.py
 ```
 
-2) Скачайте Chromium в папку проекта:
-```
+## Сборка (опционально)
+```powershell
+pip install pyinstaller
 $env:PLAYWRIGHT_BROWSERS_PATH = "$PWD\playwright-browsers"
 python -m playwright install chromium
-```
-
-3) Соберите exe:
-```
-$env:PLAYWRIGHT_BROWSERS_PATH = "$PWD\playwright-browsers"
 python -m PyInstaller --noconfirm --windowed --name OzonAutoReply ^
   --add-data "ozon_ai.db;." ^
   --add-data "ozon_ai\data;ozon_ai\data" ^
@@ -28,8 +41,49 @@ python -m PyInstaller --noconfirm --windowed --name OzonAutoReply ^
   app.py
 ```
 
-Готовый exe: `dist\OzonAutoReply\OzonAutoReply.exe`
+Готовый файл: `dist\OzonAutoReply\OzonAutoReply.exe`
 
-## Примечания
-- База `ozon_ai.db` берется на момент сборки. Чтобы использовать актуальную базу, просто замените файл в `dist\OzonAutoReply\_internal\ozon_ai.db`.
-- В `dist\OzonAutoReply\_internal\playwright-browsers` лежит встроенный Chromium для Playwright.
+---
+
+# English
+
+OzonAutoReply is a desktop app for Ozon sellers (PyQt6): it loads new reviews, generates replies via OpenAI, and optionally auto-posts them. Data is stored in SQLite; accounts/templates/settings are managed in the UI; builds into a Windows .exe with PyInstaller.
+
+## Stack
+- Python 3
+- PyQt6 (GUI)
+- Playwright (fetching reviews from Ozon seller кабинет)
+- OpenAI API (reply generation)
+- SQLite (local storage)
+- PyInstaller (exe build)
+
+## Run
+1. Create and activate a virtual environment.
+2. Install dependencies.
+3. Install the Playwright browser.
+4. Start the app.
+
+```powershell
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+python -m playwright install chromium
+python app.py
+```
+
+## Build (optional)
+```powershell
+pip install pyinstaller
+$env:PLAYWRIGHT_BROWSERS_PATH = "$PWD\playwright-browsers"
+python -m playwright install chromium
+python -m PyInstaller --noconfirm --windowed --name OzonAutoReply ^
+  --add-data "ozon_ai.db;." ^
+  --add-data "ozon_ai\data;ozon_ai\data" ^
+  --add-data "playwright-browsers;playwright-browsers" ^
+  --collect-all playwright ^
+  --collect-all playwright_stealth ^
+  --hidden-import ozon_ai.playwright_runner ^
+  app.py
+```
+
+Output: `dist\OzonAutoReply\OzonAutoReply.exe`
