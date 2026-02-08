@@ -13,6 +13,10 @@ from urllib import request as url_request
 
 _DEFAULT_MODEL = "gpt-4o-mini"
 _DEFAULT_TIMEOUT = 30
+_DEFAULT_TEMPERATURE = 1.0
+_DEFAULT_TOP_P = 0.9
+_DEFAULT_PRESENCE_PENALTY = 0.6
+_DEFAULT_FREQUENCY_PENALTY = 0.3
 _BASE_URL = os.environ.get("OPENAI_BASE_URL") or os.environ.get("OPENAI_API_BASE") or "https://api.openai.com/v1"
 _DOTENV_CACHE: Optional[Dict[str, str]] = None
 _DOTENV_LOCK = threading.Lock()
@@ -100,10 +104,6 @@ def get_openai_model() -> str:
     return os.environ.get("OPENAI_MODEL") or _load_dotenv().get("OPENAI_MODEL") or _DEFAULT_MODEL
 
 
-def _fallback_response(review: Dict[str, Any]) -> str:
-    return ""
-
-
 def _build_user_input(
     review: Dict[str, Any],
     examples: Optional[list[Dict[str, Any]]] = None,
@@ -158,7 +158,7 @@ def _normalize_text(text: str) -> str:
     return cleaned
 
 
-def _is_too_similar(text: str, recent: list[str], threshold: float = 0.92) -> bool:
+def _is_too_similar(text: str, recent: list[str], threshold: float = 0.85) -> bool:
     if not text:
         return True
     norm = _normalize_text(text)
@@ -205,12 +205,24 @@ def _postprocess(text: str) -> str:
     return cleaned
 
 
-def _call_openai(api_key: str, model: str, prompt: str, timeout: int) -> str:
+def _call_openai(
+    api_key: str,
+    model: str,
+    prompt: str,
+    timeout: int,
+    temperature: float,
+    top_p: float,
+    presence_penalty: float,
+    frequency_penalty: float,
+) -> str:
     payload = {
         "model": model,
         "input": prompt,
         "instructions": _SYSTEM_PROMPT,
-        "temperature": 0.8,
+        "temperature": temperature,
+        "top_p": top_p,
+        "presence_penalty": presence_penalty,
+        "frequency_penalty": frequency_penalty,
         "max_output_tokens": 200,
     }
     url = f"{_BASE_URL}/responses"
@@ -237,7 +249,7 @@ def generate_ai_response(
     model: Optional[str] = None,
     examples: Optional[list[Dict[str, Any]]] = None,
     avoid_responses: Optional[list[str]] = None,
-    max_attempts: int = 3,
+    max_attempts: int = 5,
     min_interval: int = 10,
     max_interval: int = 30,
     timeout: int = _DEFAULT_TIMEOUT,
@@ -248,6 +260,10 @@ def generate_ai_response(
 
     model = model or get_openai_model()
     logger = logging.getLogger(__name__)
+    temperature = float(os.environ.get("OPENAI_TEMPERATURE") or _DEFAULT_TEMPERATURE)
+    top_p = float(os.environ.get("OPENAI_TOP_P") or _DEFAULT_TOP_P)
+    presence_penalty = float(os.environ.get("OPENAI_PRESENCE_PENALTY") or _DEFAULT_PRESENCE_PENALTY)
+    frequency_penalty = float(os.environ.get("OPENAI_FREQUENCY_PENALTY") or _DEFAULT_FREQUENCY_PENALTY)
     recent = list(avoid_responses or [])
 
     for attempt in range(max(1, int(max_attempts))):
@@ -261,7 +277,16 @@ def generate_ai_response(
         )
         _rate_limiter.throttle(min_interval, max_interval)
         try:
-            text = _call_openai(api_key, model, prompt, timeout)
+            text = _call_openai(
+                api_key,
+                model,
+                prompt,
+                timeout,
+                temperature=temperature,
+                top_p=top_p,
+                presence_penalty=presence_penalty,
+                frequency_penalty=frequency_penalty,
+            )
             text = _postprocess(text)
         except url_error.HTTPError as exc:
             try:

@@ -5,6 +5,7 @@ build/
 *.spec
 *.exe
 *.relogin
+.env
 
 # Playwright browsers (Windows too)
 playwright-browsers/
