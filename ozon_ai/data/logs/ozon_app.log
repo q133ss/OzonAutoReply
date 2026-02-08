@@ -1574,3 +1574,99 @@ KeyboardInterrupt
 2026-02-07 04:36:24 | INFO | env | Platform: Windows-11-10.0.26100-SP0
 2026-02-07 04:36:24 | INFO | env | Playwright: 1.58.0
 2026-02-07 04:36:24 | INFO | env | Playwright-stealth: 2.0.1
+2026-02-08 17:31:12 | INFO | env | Logging started at 2026-02-08T17:31:12
+2026-02-08 17:31:12 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-02-08 17:31:12 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-02-08 17:31:12 | INFO | env | Playwright: 1.57.0
+2026-02-08 17:31:12 | INFO | env | Playwright-stealth: 2.0.1
+2026-02-08 17:34:50 | INFO | env | Logging started at 2026-02-08T17:34:50
+2026-02-08 17:34:50 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-02-08 17:34:50 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-02-08 17:34:50 | INFO | env | Playwright: 1.57.0
+2026-02-08 17:34:50 | INFO | env | Playwright-stealth: 2.0.1
+2026-02-08 17:34:52 | INFO | playwright.dialog | Starting Playwright runner
+2026-02-08 17:34:52 | INFO | env | Logging started at 2026-02-08T17:34:52
+2026-02-08 17:34:52 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-02-08 17:34:52 | INFO | playwright.dialog | runner: 2026-02-08 17:34:52 | INFO | env | Logging started at 2026-02-08T17:34:52
+2026-02-08 17:34:52 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-02-08 17:34:52 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-02-08 17:34:52 | INFO | playwright.dialog | runner: 2026-02-08 17:34:52 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-02-08 17:34:52 | INFO | env | Playwright: 1.57.0
+2026-02-08 17:34:52 | INFO | playwright.dialog | runner: 2026-02-08 17:34:52 | INFO | env | Playwright: 1.57.0
+2026-02-08 17:34:52 | INFO | env | Playwright-stealth: 2.0.1
+2026-02-08 17:34:52 | INFO | playwright.dialog | runner: 2026-02-08 17:34:52 | INFO | env | Playwright-stealth: 2.0.1
+2026-02-08 17:34:53 | INFO | playwright.runner | Runner starting. url=https://seller.ozon.ru/app/registration/signin?redirect=L3Jldmlld3M%2FX19ycj0xJmFidF9hdHQ9MQ%3D%3D
+2026-02-08 17:34:53 | INFO | playwright.dialog | runner: 2026-02-08 17:34:53 | INFO | playwright.runner | Runner starting. url=https://seller.ozon.ru/app/registration/signin?redirect=L3Jldmlld3M%2FX19ycj0xJmFidF9hdHQ9MQ%3D%3D
+2026-02-08 17:36:20 | INFO | playwright.runner | Saving storage state to C:\Users\lexa3\Desktop\OzonAutoReply\ozon_ai\data\sessions\ozon_session_20260208_173620_aa6806c1328e42adbed913d9e12f5871.json
+2026-02-08 17:36:20 | INFO | playwright.dialog | runner: 2026-02-08 17:36:20 | INFO | playwright.runner | Saving storage state to C:\Users\lexa3\Desktop\OzonAutoReply\ozon_ai\data\sessions\ozon_session_20260208_173620_aa6806c1328e42adbed913d9e12f5871.json
+2026-02-08 17:36:20 | INFO | playwright.runner | Storage state saved
+2026-02-08 17:36:20 | INFO | playwright.dialog | runner: 2026-02-08 17:36:20 | INFO | playwright.runner | Storage state saved
+2026-02-08 17:36:21 | INFO | playwright.dialog | Playwright runner finished. code=0 status=ExitStatus.NormalExit
+2026-02-08 17:36:52 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-proj-********************************************************************************************************************************************************QmoA. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
+2026-02-08 17:37:11 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-proj-********************************************************************************************************************************************************QmoA. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
+2026-02-08 17:37:36 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-proj-********************************************************************************************************************************************************QmoA. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
+2026-02-08 17:37:47 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-proj-********************************************************************************************************************************************************QmoA. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
+2026-02-08 17:38:05 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-proj-********************************************************************************************************************************************************QmoA. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
+2026-02-08 17:38:22 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-proj-********************************************************************************************************************************************************QmoA. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
+2026-02-08 17:42:09 | INFO | env | Logging started at 2026-02-08T17:42:09
+2026-02-08 17:42:09 | INFO | env | Python: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+2026-02-08 17:42:09 | INFO | env | Platform: Windows-11-10.0.26100-SP0
+2026-02-08 17:42:09 | INFO | env | Playwright: 1.57.0
+2026-02-08 17:42:09 | INFO | env | Playwright-stealth: 2.0.1
+2026-02-08 17:42:10 | WARNING | ozon_ai.ai | OpenAI HTTP error: HTTP Error 401: Unauthorized {
+  "error": {
+    "message": "Incorrect API key provided: sk-proj-********************************************************************************************************************************************************QmoA. You can find your API key at https://platform.openai.com/account/api-keys.",
+    "type": "invalid_request_error",
+    "code": "invalid_api_key",
+    "param": null
+  },
+  "status": 401
+}
