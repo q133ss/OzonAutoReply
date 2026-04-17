@@ -26,6 +26,15 @@ python -m playwright install chromium
 python app.py
 ```
 
+## Прокси
+В настройках приложения можно включить общий прокси для всех сетевых операций:
+- вход в Ozon через Playwright;
+- загрузка отзывов из Ozon;
+- отправка ответов на отзывы;
+- генерация ответов через OpenAI.
+
+Поддерживаются типы `HTTP`, `HTTPS` и `SOCKS5`, а также логин/пароль. Если прокси включен, обязательно заполните хост и порт.
+
 ## Сборка (опционально)
 ```powershell
 pip install pyinstaller
@@ -70,6 +79,15 @@ pip install -r requirements.txt
 python -m playwright install chromium
 python app.py
 ```
+
+## Proxy
+The Settings tab can enable one shared proxy for all network operations:
+- Ozon login through Playwright;
+- fetching Ozon reviews;
+- posting review replies;
+- generating replies through OpenAI.
+
+Supported proxy types are `HTTP`, `HTTPS`, and `SOCKS5`, with optional username/password authentication. Host and port are required when the proxy is enabled.
 
 ## Build (optional)
 ```powershell

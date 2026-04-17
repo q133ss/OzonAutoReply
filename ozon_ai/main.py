@@ -22,6 +22,18 @@ def ensure_defaults(db: Database) -> None:
         db.set_setting("auto_send_enabled", "0")
     if db.get_setting("send_interval") is None:
         db.set_setting("send_interval", "5")
+    if db.get_setting("proxy_enabled") is None:
+        db.set_setting("proxy_enabled", "0")
+    if db.get_setting("proxy_type") is None:
+        db.set_setting("proxy_type", "http")
+    if db.get_setting("proxy_host") is None:
+        db.set_setting("proxy_host", "")
+    if db.get_setting("proxy_port") is None:
+        db.set_setting("proxy_port", "")
+    if db.get_setting("proxy_username") is None:
+        db.set_setting("proxy_username", "")
+    if db.get_setting("proxy_password") is None:
+        db.set_setting("proxy_password", "")
 
 
     # Intentionally no review seeding; all reviews must come from the API.
