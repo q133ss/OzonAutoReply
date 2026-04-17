@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QLabel, QScrollArea, QTabWidget, QVBoxLayout, QWidge
 
 from ...db import Database
 from ...ozon_comments import send_review_comment
+from ...proxy import ProxyConfig
 from ..widgets.review_card import ReviewCard
 from ..widgets.review_list import ReviewList
 
@@ -70,6 +71,12 @@ class ReviewsTab(QWidget):
             return
 
         send_interval = int(self.db.get_setting("send_interval") or 5)
+        try:
+            proxy_config = ProxyConfig.from_db(self.db)
+            proxy_config.validate()
+        except ValueError as exc:
+            QMessageBox.warning(self, "Ошибка прокси", str(exc))
+            return
 
         def worker() -> None:
             ok = False
@@ -79,6 +86,7 @@ class ReviewsTab(QWidget):
                     uuid,
                     response,
                     throttle_interval=send_interval,
+                    proxy_config=proxy_config,
                 )
             except Exception:
                 self._logger.exception("Failed to send review response")

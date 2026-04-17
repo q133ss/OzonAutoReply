@@ -26,7 +26,9 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 session_path TEXT,
-                created_at TEXT
+                profile_dir TEXT,
+                created_at TEXT,
+                session_version INTEGER DEFAULT 2
             )
             """
         )
@@ -34,8 +36,13 @@ class Database:
         columns = {row["name"] for row in cur.fetchall()}
         if "session_path" not in columns:
             cur.execute("ALTER TABLE accounts ADD COLUMN session_path TEXT")
+        if "profile_dir" not in columns:
+            cur.execute("ALTER TABLE accounts ADD COLUMN profile_dir TEXT")
         if "created_at" not in columns:
             cur.execute("ALTER TABLE accounts ADD COLUMN created_at TEXT")
+        if "session_version" not in columns:
+            cur.execute("ALTER TABLE accounts ADD COLUMN session_version INTEGER DEFAULT 2")
+        cur.execute("UPDATE accounts SET session_version = 2 WHERE session_version IS NULL")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS reviews (
@@ -123,14 +130,30 @@ class Database:
 
     def list_accounts(self) -> List[sqlite3.Row]:
         cur = self.conn.cursor()
-        cur.execute("SELECT id, name, session_path, created_at FROM accounts ORDER BY id")
+        cur.execute(
+            """
+            SELECT id, name, session_path, profile_dir, created_at, session_version
+            FROM accounts
+            ORDER BY id
+            """
+        )
         return cur.fetchall()
 
-    def add_account(self, name: str, session_path: str, created_at: str) -> None:
+    def add_account(
+        self,
+        name: str,
+        session_path: str,
+        profile_dir: Optional[str],
+        created_at: str,
+        session_version: int = 2,
+    ) -> None:
         cur = self.conn.cursor()
         cur.execute(
-            "INSERT INTO accounts (name, session_path, created_at) VALUES (?, ?, ?)",
-            (name, session_path, created_at),
+            """
+            INSERT INTO accounts (name, session_path, profile_dir, created_at, session_version)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (name, session_path, profile_dir, created_at, session_version),
         )
         self.conn.commit()
 
@@ -139,17 +162,32 @@ class Database:
         cur.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
         self.conn.commit()
 
-    def update_account_session(self, account_id: int, session_path: str, created_at: Optional[str] = None) -> None:
+    def update_account_session(
+        self,
+        account_id: int,
+        session_path: str,
+        profile_dir: Optional[str],
+        created_at: Optional[str] = None,
+        session_version: int = 2,
+    ) -> None:
         cur = self.conn.cursor()
         if created_at is None:
             cur.execute(
-                "UPDATE accounts SET session_path = ? WHERE id = ?",
-                (session_path, account_id),
+                """
+                UPDATE accounts
+                SET session_path = ?, profile_dir = ?, session_version = ?
+                WHERE id = ?
+                """,
+                (session_path, profile_dir, session_version, account_id),
             )
         else:
             cur.execute(
-                "UPDATE accounts SET session_path = ?, created_at = ? WHERE id = ?",
-                (session_path, created_at, account_id),
+                """
+                UPDATE accounts
+                SET session_path = ?, profile_dir = ?, created_at = ?, session_version = ?
+                WHERE id = ?
+                """,
+                (session_path, profile_dir, created_at, session_version, account_id),
             )
         self.conn.commit()
 
@@ -265,7 +303,14 @@ class Database:
 
     def get_account(self, account_id: int) -> Optional[sqlite3.Row]:
         cur = self.conn.cursor()
-        cur.execute("SELECT id, name, session_path, created_at FROM accounts WHERE id = ?", (account_id,))
+        cur.execute(
+            """
+            SELECT id, name, session_path, profile_dir, created_at, session_version
+            FROM accounts
+            WHERE id = ?
+            """,
+            (account_id,),
+        )
         return cur.fetchone()
 
     def list_examples(self) -> List[Dict[str, Any]]:

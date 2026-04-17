@@ -8,8 +8,8 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
-from urllib import error as url_error
-from urllib import request as url_request
+
+from .proxy import ProxyConfig
 
 _DEFAULT_MODEL = "gpt-4o-mini"
 _DEFAULT_TIMEOUT = 30
@@ -214,6 +214,7 @@ def _call_openai(
     top_p: float,
     presence_penalty: float,
     frequency_penalty: float,
+    proxy_config: Optional[ProxyConfig] = None,
 ) -> str:
     payload = {
         "model": model,
@@ -226,20 +227,28 @@ def _call_openai(
         "max_output_tokens": 200,
     }
     url = f"{_BASE_URL}/responses"
-    data = json.dumps(payload).encode("utf-8")
-    req = url_request.Request(
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    import requests
+
+    proxies = proxy_config.to_requests_proxies() if proxy_config else None
+    resp = requests.post(
         url,
-        data=data,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
+        json=payload,
+        headers=headers,
+        timeout=timeout,
+        proxies=proxies,
     )
-    with url_request.urlopen(req, timeout=timeout) as resp:
-        body = resp.read()
-    payload = json.loads(body)
-    return _extract_output_text(payload)
+    if not resp.ok:
+        logging.getLogger(__name__).warning(
+            "OpenAI HTTP error: status=%s body=%s",
+            resp.status_code,
+            resp.text,
+        )
+        return ""
+    return _extract_output_text(resp.json())
 
 
 def generate_ai_response(
@@ -253,6 +262,7 @@ def generate_ai_response(
     min_interval: int = 10,
     max_interval: int = 30,
     timeout: int = _DEFAULT_TIMEOUT,
+    proxy_config: Optional[ProxyConfig] = None,
 ) -> str:
     api_key = api_key or get_openai_api_key()
     if not api_key:
@@ -286,15 +296,9 @@ def generate_ai_response(
                 top_p=top_p,
                 presence_penalty=presence_penalty,
                 frequency_penalty=frequency_penalty,
+                proxy_config=proxy_config,
             )
             text = _postprocess(text)
-        except url_error.HTTPError as exc:
-            try:
-                details = exc.read().decode("utf-8", errors="ignore")
-            except Exception:
-                details = ""
-            logger.warning("OpenAI HTTP error: %s %s", exc, details)
-            return ""
         except Exception:
             logger.exception("Failed to generate OpenAI response")
             return ""

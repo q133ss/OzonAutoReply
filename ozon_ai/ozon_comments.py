@@ -15,6 +15,7 @@ from .ozon_reviews import (
     _load_storage_state,
     _clear_session_needs_relogin,
 )
+from .proxy import ProxyConfig
 
 
 REVIEW_COMMENT_URL = "https://seller.ozon.ru/api/review/comment/create"
@@ -46,6 +47,7 @@ def send_review_comment(
     *,
     timeout: int = 20,
     throttle_interval: int = 0,
+    proxy_config: Optional[ProxyConfig] = None,
 ) -> bool:
     if not session_path.exists() or not review_uuid or not text:
         return False
@@ -93,10 +95,12 @@ def send_review_comment(
 
     try:
         with sync_playwright() as playwright:
+            proxy = proxy_config.to_playwright_proxy() if proxy_config else None
             request_context = playwright.request.new_context(
                 storage_state=str(session_path),
                 extra_http_headers=headers,
                 user_agent=user_agent,
+                proxy=proxy,
             )
             try:
                 response = request_context.post(

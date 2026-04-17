@@ -4,13 +4,11 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from .browser_profile import USER_AGENT
+from .proxy import ProxyConfig
+
 
 REVIEW_LIST_URL = "https://seller.ozon.ru/api/v4/review/list"
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/144.0.0.0 Safari/537.36"
-)
 DEFAULT_FILTER = {"published_at": {}, "interaction_status": ["NOT_VIEWED"]}
 DEFAULT_HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -256,7 +254,11 @@ def _extract_reviews_payload(payload: Dict[str, Any]) -> Tuple[List[Dict[str, An
     return reviews, has_next, last_review
 
 
-def fetch_all_new_reviews(session_path: Path, timeout: int = 20) -> List[Dict[str, Any]]:
+def fetch_all_new_reviews(
+    session_path: Path,
+    timeout: int = 20,
+    proxy_config: Optional[ProxyConfig] = None,
+) -> List[Dict[str, Any]]:
     if not session_path.exists():
         return []
 
@@ -299,10 +301,12 @@ def fetch_all_new_reviews(session_path: Path, timeout: int = 20) -> List[Dict[st
 
     try:
         with sync_playwright() as playwright:
+            proxy = proxy_config.to_playwright_proxy() if proxy_config else None
             request_context = playwright.request.new_context(
                 storage_state=str(session_path),
                 extra_http_headers=headers,
                 user_agent=user_agent,
+                proxy=proxy,
             )
             try:
                 for _ in range(100):

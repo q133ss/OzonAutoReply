@@ -9,6 +9,7 @@ from .ai import generate_ai_response, get_openai_api_key
 from .db import Database
 from .ozon_comments import send_review_comment
 from .ozon_reviews import fetch_all_new_reviews
+from .proxy import ProxyConfig
 
 
 class ReviewsPoller(QObject):
@@ -61,6 +62,8 @@ def sync_new_reviews(db_path: Path) -> int:
             max_interval = min_interval
         send_interval = int(db.get_setting("send_interval") or 5)
         auto_send_enabled = (db.get_setting("auto_send_enabled") or "0").lower() in {"1", "true", "yes", "on"}
+        proxy_config = ProxyConfig.from_db(db)
+        proxy_config.validate()
         accounts = db.list_accounts()
         if not accounts:
             return 0
@@ -74,7 +77,7 @@ def sync_new_reviews(db_path: Path) -> int:
             session_file = Path(session_path)
             if not session_file.exists():
                 continue
-            reviews = fetch_all_new_reviews(session_file)
+            reviews = fetch_all_new_reviews(session_file, proxy_config=proxy_config)
             for review in reviews:
                 uuid = review.get("uuid")
                 if not uuid or uuid in known_uuids:
@@ -90,6 +93,7 @@ def sync_new_reviews(db_path: Path) -> int:
                         min_interval=min_interval,
                         max_interval=max_interval,
                         avoid_responses=recent_responses,
+                        proxy_config=proxy_config,
                     )
                 rating = int(review.get("rating") or 0)
                 db.upsert_review(review, status="new", ai_response=ai_response, account_id=account["id"])
@@ -106,6 +110,7 @@ def sync_new_reviews(db_path: Path) -> int:
                         uuid,
                         ai_response,
                         throttle_interval=send_interval,
+                        proxy_config=proxy_config,
                     )
                     if success:
                         db.update_review_status(uuid, "completed", ai_response)
