@@ -6,6 +6,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QDialog
 
 from .ai import get_openai_api_key
+from .app_paths import app_root, db_path as app_db_path
 from .db import Database
 from .logging_utils import setup_logging
 from .ui.dialogs import ApiKeyDialog
@@ -44,8 +45,8 @@ def main() -> None:
     app = QApplication(sys.argv)
     app.setStyleSheet(APP_STYLESHEET)
 
-    base_dir = Path(__file__).resolve().parent.parent
-    db_path = base_dir / "ozon_ai.db"
+    base_dir = app_root()
+    db_path = app_db_path()
     legacy_db_path = base_dir / "ozon_ai.sqlite"
     if not db_path.exists() and legacy_db_path.exists():
         shutil.copy2(legacy_db_path, db_path)

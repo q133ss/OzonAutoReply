@@ -3,7 +3,7 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('ozon_ai.db', '.'), ('ozon_ai\\data', 'ozon_ai\\data'), ('playwright-browsers', 'playwright-browsers')]
 binaries = []
-hiddenimports = ['ozon_ai.playwright_runner', 'socks']
+hiddenimports = ['ozon_ai.playwright_runner', 'ozon_ai.real_browser_session']
 tmp_ret = collect_all('playwright')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('playwright_stealth')
