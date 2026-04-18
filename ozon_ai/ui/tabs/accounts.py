@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -16,8 +15,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...app_paths import sessions_dir
 from ...db import Database
-from ...proxy import ProxyConfig
 from ..dialogs import AccountSessionDialog
 
 OZON_LOGIN_URL = (
@@ -99,59 +98,27 @@ class AccountsTab(QWidget):
             return False
 
     def _add_account(self) -> None:
-        sessions_dir = Path(__file__).resolve().parents[2] / "data" / "sessions"
         dialog = AccountSessionDialog(
-            sessions_dir,
+            sessions_dir(),
             OZON_LOGIN_URL,
             self,
-            ProxyConfig.from_db(self.db),
             mode="new_account",
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            if not dialog.session_path:
-                QMessageBox.warning(self, "Сессия не сохранена", "Не удалось сохранить сессию.")
-                return
-            if not Path(dialog.session_path).exists():
-                QMessageBox.warning(self, "Сессия не найдена", "Файл сессии не создан. Проверьте лог.")
-                return
-            from ...ozon_reviews import _clear_session_needs_relogin
-
-            _clear_session_needs_relogin(Path(dialog.session_path))
-            created_at = dialog.created_at or datetime.now().isoformat(timespec="seconds")
-            self.db.add_account(dialog.account_name, dialog.session_path, dialog.profile_dir, created_at)
             self.refresh()
 
     def _relogin_account(self, account_id: int) -> None:
-        sessions_dir = Path(__file__).resolve().parents[2] / "data" / "sessions"
         account = self.db.get_account(account_id)
-        browser_profiles_dir = sessions_dir.parent / "browser_profiles"
-        if account and account["profile_dir"]:
-            profile_dir = Path(account["profile_dir"])
-        else:
-            profile_dir = browser_profiles_dir / f"account_{account_id}"
-
         dialog = AccountSessionDialog(
-            sessions_dir,
+            sessions_dir(),
             OZON_LOGIN_URL,
             self,
-            ProxyConfig.from_db(self.db),
-            profile_dir=profile_dir,
             mode="relogin",
+            account_id=account_id,
+            account_name=str(account["name"]) if account else "",
         )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-        if not dialog.session_path:
-            QMessageBox.warning(self, "Сессия не сохранена", "Не удалось сохранить сессию.")
-            return
-        if not Path(dialog.session_path).exists():
-            QMessageBox.warning(self, "Сессия не найдена", "Файл сессии не создан. Проверьте лог.")
-            return
-        from ...ozon_reviews import _clear_session_needs_relogin
-
-        _clear_session_needs_relogin(Path(dialog.session_path))
-        created_at = dialog.created_at or datetime.now().isoformat(timespec="seconds")
-        self.db.update_account_session(account_id, dialog.session_path, dialog.profile_dir, created_at)
-        self.refresh()
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.refresh()
 
     def _delete_account(self) -> None:
         item = self.list_widget.currentItem()

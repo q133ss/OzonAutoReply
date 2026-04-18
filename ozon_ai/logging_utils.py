@@ -12,6 +12,8 @@ from typing import Optional
 
 import importlib.metadata as metadata
 
+from .app_paths import logs_dir
+
 LOG_PATH: Optional[Path] = None
 _STDERR_FILE = None
 _STDERR_REDIRECTED = False
@@ -20,9 +22,7 @@ _STDERR_REDIRECTED = False
 def setup_logging() -> Path:
     global LOG_PATH, _STDERR_FILE, _STDERR_REDIRECTED
 
-    logs_dir = Path(__file__).resolve().parent / "data" / "logs"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    LOG_PATH = logs_dir / "ozon_app.log"
+    LOG_PATH = logs_dir() / "ozon_app.log"
 
     logger = logging.getLogger()
     if not logger.handlers:

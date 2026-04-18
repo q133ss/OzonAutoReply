@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .app_paths import env_path
 from .proxy import ProxyConfig
 
 _DEFAULT_MODEL = "gpt-4o-mini"
@@ -67,6 +68,10 @@ class _RateLimiter:
 _rate_limiter = _RateLimiter()
 
 
+def get_openai_base_url() -> str:
+    return _BASE_URL
+
+
 def _load_dotenv() -> Dict[str, str]:
     global _DOTENV_CACHE
     if _DOTENV_CACHE is not None:
@@ -74,11 +79,11 @@ def _load_dotenv() -> Dict[str, str]:
     with _DOTENV_LOCK:
         if _DOTENV_CACHE is not None:
             return _DOTENV_CACHE
-        env_path = Path(__file__).resolve().parent.parent / ".env"
+        dotenv_path = env_path()
         values: Dict[str, str] = {}
-        if env_path.exists():
+        if dotenv_path.exists():
             try:
-                for line in env_path.read_text(encoding="utf-8").splitlines():
+                for line in dotenv_path.read_text(encoding="utf-8").splitlines():
                     line = line.strip()
                     if not line or line.startswith("#") or "=" not in line:
                         continue
@@ -249,6 +254,73 @@ def _call_openai(
         )
         return ""
     return _extract_output_text(resp.json())
+
+
+def test_openai_connection(
+    *,
+    api_key: str,
+    model: Optional[str] = None,
+    timeout: int = _DEFAULT_TIMEOUT,
+    proxy_config: Optional[ProxyConfig] = None,
+) -> Dict[str, Any]:
+    import requests
+
+    proxies = proxy_config.to_requests_proxies() if proxy_config else None
+    model_name = model or get_openai_model()
+    result: Dict[str, Any] = {
+        "base_url": get_openai_base_url(),
+        "model": model_name,
+        "proxy_enabled": bool(proxy_config and proxy_config.enabled),
+        "proxy_server": proxy_config.server_url() if proxy_config and proxy_config.enabled else None,
+        "ipify_ip": None,
+        "ok": False,
+        "reply": "",
+        "error": "",
+        "status_code": None,
+    }
+
+    try:
+        ip_resp = requests.get(
+            "https://api.ipify.org?format=json",
+            timeout=timeout,
+            proxies=proxies,
+        )
+        if ip_resp.ok:
+            result["ipify_ip"] = (ip_resp.json() or {}).get("ip")
+        else:
+            result["ipify_ip"] = f"http_{ip_resp.status_code}"
+    except Exception as exc:
+        result["ipify_ip"] = f"error: {exc}"
+
+    payload = {
+        "model": model_name,
+        "input": "Ответь ровно фразой: OPENAI_OK",
+        "instructions": "Return exactly the requested phrase.",
+        "max_output_tokens": 20,
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    try:
+        resp = requests.post(
+            f"{get_openai_base_url()}/responses",
+            json=payload,
+            headers=headers,
+            timeout=timeout,
+            proxies=proxies,
+        )
+        result["status_code"] = resp.status_code
+        if not resp.ok:
+            result["error"] = resp.text
+            return result
+        text = _postprocess(_extract_output_text(resp.json()))
+        result["reply"] = text
+        result["ok"] = bool(text)
+        return result
+    except Exception as exc:
+        result["error"] = repr(exc)
+        return result
 
 
 def generate_ai_response(

@@ -1,13 +1,8 @@
-import json
-import logging
-import shutil
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from uuid import uuid4
 
-from PyQt6.QtCore import QProcess, QTimer
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -22,8 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..logging_utils import get_log_path
-from ..proxy import ProxyConfig
+from ..real_browser_session import import_session_from_browser, open_real_browser, real_browser_profile_dir
 
 
 class ApiKeyDialog(QDialog):
@@ -60,281 +54,144 @@ class AccountSessionDialog(QDialog):
         sessions_dir: Path,
         url: str,
         parent: Optional[QWidget] = None,
-        proxy_config: Optional[ProxyConfig] = None,
+        proxy_config: Optional[object] = None,
         profile_dir: Optional[Path] = None,
         mode: str = "new_account",
+        account_id: Optional[int] = None,
+        account_name: str = "",
     ) -> None:
         super().__init__(parent)
         self.sessions_dir = sessions_dir
         self.url = url
-        self.proxy_config = proxy_config
         self.mode = mode
-        self.account_name = ""
+        self.account_id = account_id
+        self.account_name = account_name.strip()
         self.session_path = ""
-        self.profile_dir = ""
+        self.profile_dir = str(profile_dir or real_browser_profile_dir())
         self.created_at = ""
-        self._session_saved = False
-        self._closing = False
-        self._logger = logging.getLogger("playwright.dialog")
+        self._proxy_config = proxy_config
+        self._browser_opened = False
+        self._cdp_port = 9222
 
-        self._run_id = uuid4().hex
-        self._control_path = self.sessions_dir / f"session_{self._run_id}.cmd"
-        self._status_path = self.sessions_dir / f"session_{self._run_id}.status"
-        self._error_path = self._status_path.with_suffix(".error")
-        self._proxy_config_path = self.sessions_dir / f"session_{self._run_id}.proxy.json"
-        self._browser_profiles_dir = self.sessions_dir.parent / "browser_profiles"
-        self._browser_profiles_dir.mkdir(parents=True, exist_ok=True)
-        if profile_dir is None:
-            self._profile_dir = self._browser_profiles_dir / f"profile_{self._run_id}"
-            self._temporary_profile = True
-        else:
-            self._profile_dir = Path(profile_dir)
-            self._temporary_profile = False
-        self.profile_dir = str(self._profile_dir)
-
-        self.setWindowTitle("Добавление аккаунта Ozon")
-        self.setMinimumWidth(520)
+        self.setWindowTitle("Добавление аккаунта Ozon" if mode == "new_account" else "Вход в Ozon")
+        self.setMinimumWidth(560)
 
         layout = QVBoxLayout(self)
-        instructions = QLabel(
-            "Откроется окно браузера с постоянным профилем. Войдите в аккаунт Ozon вручную, "
-            "вернитесь сюда и нажмите \"Сохранить сессию\"."
-        )
+        instructions = QLabel(self._build_instructions())
         instructions.setWordWrap(True)
         layout.addWidget(instructions)
 
-        self.status_label = QLabel("Запуск браузера...")
+        self.status_label = QLabel("Открываем реальный браузер...")
         self.status_label.setWordWrap(True)
         layout.addWidget(self.status_label)
 
         button_row = QHBoxLayout()
-        self.save_button = QPushButton("Сохранить сессию")
-        self.save_button.setEnabled(False)
-        self.save_button.clicked.connect(self._save_session)
+        self.open_browser_button = QPushButton("Открыть браузер еще раз")
+        self.open_browser_button.clicked.connect(self._open_browser)
+        self.import_button = QPushButton("Импортировать сессию")
+        self.import_button.setEnabled(False)
+        self.import_button.clicked.connect(self._import_session)
         self.cancel_button = QPushButton("Отмена")
         self.cancel_button.clicked.connect(self.reject)
-        button_row.addWidget(self.save_button)
+        button_row.addWidget(self.open_browser_button)
+        button_row.addWidget(self.import_button)
         button_row.addWidget(self.cancel_button)
         button_row.addStretch(1)
         layout.addLayout(button_row)
 
-        self.sessions_dir.mkdir(parents=True, exist_ok=True)
-        self._process = QProcess(self)
-        self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
-        self._process.errorOccurred.connect(self._on_process_error)
-        self._process.finished.connect(self._on_process_finished)
-        self._process.readyReadStandardOutput.connect(self._on_process_output)
+        QTimer.singleShot(0, self._open_browser)
 
-        self._status_timer = QTimer(self)
-        self._status_timer.setInterval(300)
-        self._status_timer.timeout.connect(self._poll_status)
-        self._status_timer.start()
+    def _build_instructions(self) -> str:
+        action = (
+            "Войдите в нужный аккаунт Ozon в обычном Chrome/Edge."
+            if self.mode == "new_account"
+            else "Войдите заново в Ozon в обычном Chrome/Edge для выбранного аккаунта."
+        )
+        return (
+            "Будет открыт реальный браузер без Playwright-автоматизации.\n\n"
+            f"{action}\n"
+            "После входа обязательно откройте страницу seller.ozon.ru/app/reviews "
+            "в этом же окне, затем вернитесь сюда и нажмите \"Импортировать сессию\".\n\n"
+            "Важно: этот шаг использует системные настройки браузера и Windows proxy, "
+            "а не встроенный proxy приложения."
+        )
 
-        self._start_runner()
+    def _open_browser(self) -> None:
+        try:
+            browser_path, profile_dir = open_real_browser(port=self._cdp_port, start_url=self.url)
+        except Exception as exc:
+            self.status_label.setText("Не удалось открыть реальный браузер.")
+            QMessageBox.critical(self, "Ошибка браузера", str(exc))
+            return
 
-    def _on_started(self) -> None:
+        self._browser_opened = True
+        self.profile_dir = str(profile_dir)
+        self.import_button.setEnabled(True)
         self.status_label.setText(
-            "Браузер открыт с постоянным профилем. Войдите в Ozon и нажмите \"Сохранить сессию\"."
+            "Браузер открыт.\n"
+            f"Путь: {browser_path}\n"
+            f"Профиль: {profile_dir}\n\n"
+            "Войдите в Ozon, откройте seller.ozon.ru/app/reviews и затем импортируйте сессию."
         )
-        self.save_button.setEnabled(True)
 
-    def _save_session(self) -> None:
-        default_name = f"Ozon {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        name, ok = QInputDialog.getText(
-            self,
-            "Название аккаунта",
-            "Введите название аккаунта:",
-            text=default_name,
-        )
-        name = (name or "").strip()
-        if not ok or not name:
+    def _import_session(self) -> None:
+        if not self._browser_opened:
+            QMessageBox.warning(self, "Браузер не открыт", "Сначала откройте реальный браузер.")
+            return
+        if self.mode == "relogin" and self.account_id is None:
+            QMessageBox.warning(self, "Нет аккаунта", "Не удалось определить аккаунт для повторного входа.")
             return
 
-        self.account_name = name
-        self.created_at = datetime.now().isoformat(timespec="seconds")
-        filename = f"ozon_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex}.json"
-        self.session_path = str(self.sessions_dir / filename)
-        self.status_label.setText("Сохраняем сессию и профиль...")
-        self.save_button.setEnabled(False)
-        self._write_command({"action": "save", "session_path": self.session_path})
-
-    def _on_session_saved(self, path: str) -> None:
-        self.session_path = path
-        self._session_saved = True
-        self.status_label.setText(
-            "Сессия сохранена. Этот профиль будет переиспользован при следующем входе."
-        )
-        self.save_button.setEnabled(False)
-        self.cancel_button.setText("Готово")
-        self.cancel_button.clicked.disconnect()
-        self.cancel_button.clicked.connect(self._finish_after_save)
-
-    def _on_error(self, message: str) -> None:
-        self.status_label.setText("Не удалось сохранить сессию.")
-        log_path = get_log_path()
-        details = message
-        if log_path:
-            details = f"{message}\n\nЛог: {log_path}"
-        QMessageBox.critical(self, "Ошибка Playwright", details)
-        self.save_button.setEnabled(False)
-        self.cancel_button.setEnabled(True)
-
-    def _finish_after_save(self) -> None:
-        if self._process.state() != QProcess.ProcessState.NotRunning:
-            self.status_label.setText("Закрываем браузер...")
-            self.cancel_button.setEnabled(False)
-            self._write_command({"action": "stop"})
-            return
-        super().accept()
-
-    def reject(self) -> None:
-        if self._process.state() != QProcess.ProcessState.NotRunning:
-            self._closing = True
-            self.status_label.setText("Закрываем браузер...")
-            self.save_button.setEnabled(False)
-            self.cancel_button.setEnabled(False)
-            self._write_command({"action": "stop"})
-            return
-        self._cleanup_temporary_profile()
-        super().reject()
-
-    def _start_runner(self) -> None:
-        log_path = get_log_path()
-        self._profile_dir.mkdir(parents=True, exist_ok=True)
-        if getattr(sys, "frozen", False):
-            args = [
-                "--run-playwright-runner",
-                "--url",
-                self.url,
-                "--mode",
-                self.mode,
-                "--profile-dir",
-                str(self._profile_dir),
-                "--control-path",
-                str(self._control_path),
-                "--status-path",
-                str(self._status_path),
-            ]
-            workdir = Path(sys.executable).resolve().parent
-        else:
-            args = [
-                "-m",
-                "ozon_ai.playwright_runner",
-                "--url",
-                self.url,
-                "--mode",
-                self.mode,
-                "--profile-dir",
-                str(self._profile_dir),
-                "--control-path",
-                str(self._control_path),
-                "--status-path",
-                str(self._status_path),
-            ]
-            workdir = Path(__file__).resolve().parents[2]
-        if log_path:
-            args.extend(["--log-path", str(log_path)])
-        if self.proxy_config and self.proxy_config.enabled:
-            try:
-                self.proxy_config.validate()
-                self._proxy_config_path.write_text(
-                    json.dumps(self.proxy_config.to_dict(), ensure_ascii=False),
-                    encoding="utf-8",
-                )
-                args.extend(["--proxy-config", str(self._proxy_config_path)])
-            except Exception as exc:
-                self._logger.exception("Invalid proxy config")
-                self._on_error(str(exc))
+        account_name = self.account_name
+        if self.mode == "new_account":
+            default_name = account_name or f"Ozon {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            account_name, ok = QInputDialog.getText(
+                self,
+                "Название аккаунта",
+                "Введите название аккаунта:",
+                text=default_name,
+            )
+            account_name = (account_name or "").strip()
+            if not ok or not account_name:
                 return
-        self._logger.info(
-            "Starting Playwright runner. mode=%s profile=%s proxy=%s",
-            self.mode,
-            self._profile_dir,
-            bool(self.proxy_config and self.proxy_config.enabled),
+
+        self.status_label.setText("Импортируем сессию из реального браузера...")
+        self.import_button.setEnabled(False)
+        self.open_browser_button.setEnabled(False)
+        self.cancel_button.setEnabled(False)
+        try:
+            result = import_session_from_browser(
+                account_id=self.account_id if self.mode == "relogin" else None,
+                account_name=account_name,
+            )
+        except Exception as exc:
+            self.import_button.setEnabled(True)
+            self.open_browser_button.setEnabled(True)
+            self.cancel_button.setEnabled(True)
+            self.status_label.setText("Не удалось импортировать сессию.")
+            QMessageBox.critical(self, "Ошибка импорта", str(exc))
+            return
+
+        self.account_name = result.account_name or account_name
+        self.session_path = str(result.session_path)
+        self.profile_dir = str(result.profile_dir)
+        self.created_at = result.created_at
+        self.status_label.setText("Сессия импортирована.")
+
+        message = (
+            f"Аккаунт: {self.account_name}\n"
+            f"Файл сессии: {self.session_path}\n"
+            f"company_id: {result.company_id or '<missing>'}\n"
+            f"needs_relogin: {result.needs_relogin}"
         )
-        self._process.setWorkingDirectory(str(workdir))
-        self._process.start(sys.executable, args)
-        if not self._process.waitForStarted(5000):
-            self._on_error("Не удалось запустить встроенный Playwright браузер.")
-
-    def _cleanup_proxy_config(self) -> None:
-        try:
-            self._proxy_config_path.unlink(missing_ok=True)
-        except Exception:
-            self._logger.exception("Failed to remove proxy config")
-
-    def _cleanup_temporary_profile(self) -> None:
-        if not self._temporary_profile or self._session_saved:
-            return
-        try:
-            shutil.rmtree(self._profile_dir, ignore_errors=True)
-        except Exception:
-            self._logger.exception("Failed to remove temporary profile dir")
-
-    def _write_command(self, payload: dict) -> None:
-        try:
-            self._control_path.write_text(json.dumps(payload), encoding="utf-8")
-        except Exception:
-            self._logger.exception("Failed to write control command")
-            self._on_error("Не удалось отправить команду Playwright.")
-
-    def _poll_status(self) -> None:
-        if not self._status_path.exists():
-            return
-        try:
-            content = self._status_path.read_text(encoding="utf-8").strip()
-        except Exception:
-            self._logger.exception("Failed to read status file")
-            return
-        if content == "ready":
-            self._status_path.unlink(missing_ok=True)
-            self._on_started()
-            return
-        if content.startswith("saved|"):
-            self._status_path.unlink(missing_ok=True)
-            path = content.split("|", 1)[1]
-            self._on_session_saved(path)
-            return
-        if content in {"closed", "stopped"}:
-            self._status_path.unlink(missing_ok=True)
-            if not self._session_saved:
-                self._on_error("Браузер закрыт до сохранения сессии.")
-            return
-        if content == "error":
-            self._status_path.unlink(missing_ok=True)
-            self._show_runner_error()
-
-    def _show_runner_error(self) -> None:
-        details = "Playwright завершился с ошибкой."
-        if self._error_path.exists():
-            try:
-                error_text = self._error_path.read_text(encoding="utf-8")
-                details = f"{details}\n\n{error_text}"
-            except Exception:
-                self._logger.exception("Failed to read runner error file")
-        self._on_error(details)
-
-    def _on_process_error(self, error: QProcess.ProcessError) -> None:
-        self._logger.error("Playwright runner error: %s", error)
-        self._on_error("Playwright процесс завершился с ошибкой.")
-
-    def _on_process_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
-        self._cleanup_proxy_config()
-        self._logger.info("Playwright runner finished. code=%s status=%s", exit_code, exit_status)
-        if self._session_saved:
-            if self.cancel_button.text() != "Готово":
-                self.cancel_button.setText("Готово")
-                self.cancel_button.clicked.disconnect()
-                self.cancel_button.clicked.connect(self._finish_after_save)
-            return
-        if self._closing:
-            self._cleanup_temporary_profile()
-            super().reject()
-            return
-        self._cleanup_temporary_profile()
-        self._on_error("Playwright процесс завершился неожиданно.")
-
-    def _on_process_output(self) -> None:
-        data = bytes(self._process.readAllStandardOutput()).decode("utf-8", errors="ignore")
-        if data:
-            self._logger.info("runner: %s", data.strip())
+        if result.needs_relogin or not result.company_id:
+            QMessageBox.warning(
+                self,
+                "Сессия импортирована не полностью",
+                message
+                + "\n\nОткройте seller.ozon.ru/app/reviews в том же браузере и повторите импорт, "
+                "если аккаунт останется неактивным.",
+            )
+        else:
+            QMessageBox.information(self, "Готово", message)
+        super().accept()
