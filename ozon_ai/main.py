@@ -6,6 +6,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QDialog
 
 from .ai import get_openai_api_key
+from .com_runtime import initialize_main_thread
 from .app_paths import app_root, db_path as app_db_path
 from .db import Database
 from .logging_utils import setup_logging
@@ -42,6 +43,7 @@ def ensure_defaults(db: Database) -> None:
 
 def main() -> None:
     setup_logging()
+    initialize_main_thread()
     app = QApplication(sys.argv)
     app.setStyleSheet(APP_STYLESHEET)
 

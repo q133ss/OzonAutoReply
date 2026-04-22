@@ -3,6 +3,7 @@ import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
+from ozon_ai.com_runtime import bootstrap_windows_com
 from ozon_ai.main import main
 
 
@@ -142,6 +143,7 @@ def _run_test_openai() -> None:
 
 if __name__ == "__main__":
     _ensure_frozen_env()
+    bootstrap_windows_com()
     try:
         if "--run-playwright-runner" in sys.argv:
             _run_playwright_runner()
