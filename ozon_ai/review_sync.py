@@ -49,6 +49,53 @@ class ReviewsPoller(QObject):
         self.synced.emit(new_count)
 
 
+def _resend_pending(
+    db: Database,
+    account,
+    proxy_config: ProxyConfig,
+    send_interval: int,
+    limit: int,
+) -> int:
+    """Досылает ответы, которые готовы, но не ушли.
+
+    Отправка срывается, например, на протухшей сессии. Цикл ниже отсеивает
+    всё, что уже лежит в базе, поэтому без этой досылки такие отзывы
+    остаются неотвеченными навсегда.
+    """
+    session_file = Path(account["session_path"])
+    if not session_file.exists():
+        return 0
+    rows = db.conn.execute(
+        """
+        SELECT uuid, ai_response, user_response
+        FROM reviews
+        WHERE account_id = ? AND status = 'new' AND rating >= 4
+          AND COALESCE(NULLIF(user_response, ''), NULLIF(ai_response, '')) IS NOT NULL
+        LIMIT ?
+        """,
+        (account["id"], max(1, limit)),
+    ).fetchall()
+
+    sent = 0
+    for row in rows:
+        text = (row["user_response"] or row["ai_response"] or "").strip()
+        if not text:
+            continue
+        ok = send_review_comment(
+            session_file,
+            row["uuid"],
+            text,
+            throttle_interval=send_interval,
+            proxy_config=proxy_config,
+        )
+        if not ok:
+            # Площадка или сессия не отвечают - не молотим оставшиеся впустую.
+            break
+        db.update_review_status(row["uuid"], "completed", text)
+        sent += 1
+    return sent
+
+
 def sync_new_reviews(db_path: Path) -> int:
     if not db_path.exists():
         return 0
@@ -81,6 +128,13 @@ def sync_new_reviews(db_path: Path) -> int:
             session_file = Path(session_path)
             if not session_file.exists():
                 continue
+            if auto_send_enabled:
+                resent = _resend_pending(db, account, proxy_config, send_interval, batch_limit)
+                if resent:
+                    logging.getLogger(__name__).info(
+                        "Аккаунт %s: дослано %s ранее не отправленных", account["id"], resent
+                    )
+
             reviews = fetch_all_new_reviews(session_file, proxy_config=proxy_config)
             processed = 0
             for review in reviews:
