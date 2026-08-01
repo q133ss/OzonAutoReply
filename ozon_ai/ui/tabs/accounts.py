@@ -60,6 +60,13 @@ class AccountsTab(QWidget):
             self.list_widget.addItem(item)
             self.list_widget.setItemWidget(item, widget)
 
+    def showEvent(self, event) -> None:
+        # Список рисовался один раз за запуск. Сессия успевала умереть уже
+        # после отрисовки, аккаунт продолжал числиться активным, а кнопка
+        # повторного входа у активных скрыта - войти заново было нечем.
+        super().showEvent(event)
+        self.refresh()
+
     def _build_account_widget(self, account_id: int, name: str, is_active: bool) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
