@@ -62,6 +62,10 @@ def sync_new_reviews(db_path: Path) -> int:
             max_interval = min_interval
         send_interval = int(db.get_setting("send_interval") or 5)
         auto_send_enabled = (db.get_setting("auto_send_enabled") or "0").lower() in {"1", "true", "yes", "on"}
+        # Порция на аккаунт за один проход. Без неё аккаунт с большим
+        # хвостом неотвеченных отзывов занимает цикл на часы, и следующие
+        # аккаунты не получают очереди вовсе.
+        batch_limit = int(db.get_setting("sync_batch_per_account") or 10)
         proxy_config = ProxyConfig.from_db(db)
         proxy_config.validate()
         accounts = db.list_accounts()
@@ -78,10 +82,18 @@ def sync_new_reviews(db_path: Path) -> int:
             if not session_file.exists():
                 continue
             reviews = fetch_all_new_reviews(session_file, proxy_config=proxy_config)
+            processed = 0
             for review in reviews:
                 uuid = review.get("uuid")
                 if not uuid or uuid in known_uuids:
                     continue
+                if batch_limit > 0 and processed >= batch_limit:
+                    logging.getLogger(__name__).info(
+                        "Аккаунт %s: обработано %s за проход, остальные в следующий раз",
+                        account["id"], processed,
+                    )
+                    break
+                processed += 1
                 ai_response = review.get("ai_response")
                 if not ai_response:
                     rating = int(review.get("rating") or 0)
