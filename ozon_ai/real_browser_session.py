@@ -11,7 +11,7 @@ from uuid import uuid4
 from .app_paths import app_root, browser_profiles_dir, db_path as app_db_path, sessions_dir as app_sessions_dir
 from .browser_profile import find_chrome_executable
 from .db import Database
-from .proxy_relay import ProxyRelay
+from .proxy_relay import ProxyRelay, find_running_relay
 from .ozon_reviews import (
     _clear_session_needs_relogin,
     _extract_company_id,
@@ -81,6 +81,9 @@ class RealBrowser:
 
 def _start_relay(proxy_config: Optional[object]) -> Optional[ProxyRelay]:
     """Поднимает локальный релей, гася предыдущий: живым должен быть только один."""
+    external = find_running_relay(proxy_config)
+    if external is not None:
+        return external
     global _active_relay
     if _active_relay is not None:
         _active_relay.stop()

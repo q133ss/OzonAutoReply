@@ -12,6 +12,7 @@ import base64
 import logging
 import socket
 import threading
+from dataclasses import dataclass
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,11 @@ logger = logging.getLogger(__name__)
 _CHUNK = 65536
 _MAX_HEADER = 65536
 _CONNECT_TIMEOUT = 30
+
+# Порт, на котором релей поднимается отдельной службой. Браузер живёт дольше
+# приложения, поэтому релей внутри процесса приложения оставлял бы уже открытый
+# браузер без сети при каждом перезапуске.
+DEFAULT_RELAY_PORT = 18080
 
 
 class ProxyRelay:
@@ -29,10 +35,12 @@ class ProxyRelay:
         username: str = "",
         password: str = "",
         listen_host: str = "127.0.0.1",
+        listen_port: int = 0,
     ) -> None:
         self.upstream_host = host
         self.upstream_port = int(port)
         self.listen_host = listen_host
+        self.listen_port = int(listen_port)
         self.port = 0
         self._auth: Optional[bytes] = None
         if username:
@@ -42,7 +50,7 @@ class ProxyRelay:
         self._stopping = threading.Event()
 
     @classmethod
-    def from_config(cls, config: Any) -> Optional["ProxyRelay"]:
+    def from_config(cls, config: Any, listen_port: int = 0) -> Optional["ProxyRelay"]:
         """Релей нужен только для http(s)-прокси с логином и паролем."""
         if config is None or not getattr(config, "enabled", False):
             return None
@@ -50,7 +58,8 @@ class ProxyRelay:
             return None
         if not getattr(config, "username", ""):
             return None
-        return cls(config.host, config.port, config.username, config.password)
+        return cls(config.host, config.port, config.username, config.password,
+                   listen_port=listen_port)
 
     @property
     def server_url(self) -> str:
@@ -59,7 +68,7 @@ class ProxyRelay:
     def start(self) -> int:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind((self.listen_host, 0))
+        server.bind((self.listen_host, self.listen_port))
         server.listen(64)
         self.port = server.getsockname()[1]
         self._server = server
@@ -149,3 +158,62 @@ class ProxyRelay:
             except OSError:
                 pass
             finished.set()
+
+
+@dataclass(frozen=True)
+class ExternalRelay:
+    """Релей, поднятый отдельной службой: приложение им пользуется, но не гасит."""
+
+    server_url: str
+    upstream_host: str
+    upstream_port: int
+
+    def stop(self) -> None:
+        return
+
+
+def find_running_relay(
+    config: Any, port: int = DEFAULT_RELAY_PORT, host: str = "127.0.0.1"
+) -> Optional[ExternalRelay]:
+    if config is None or not getattr(config, "enabled", False):
+        return None
+    try:
+        with socket.create_connection((host, port), timeout=0.5):
+            pass
+    except OSError:
+        return None
+    return ExternalRelay(f"http://{host}:{port}", config.host, int(config.port))
+
+
+def main(argv: Optional[list] = None) -> int:
+    import argparse
+    import threading as _threading
+
+    from .app_paths import db_path
+    from .db import Database
+    from .proxy import ProxyConfig
+
+    parser = argparse.ArgumentParser(description="Локальный релей к прокси с паролем")
+    parser.add_argument("--port", type=int, default=DEFAULT_RELAY_PORT)
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    db = Database(str(db_path()))
+    try:
+        db.ensure_schema()
+        config = ProxyConfig.from_db(db)
+    finally:
+        db.close()
+
+    relay = ProxyRelay.from_config(config, listen_port=args.port)
+    if relay is None:
+        logging.error("Прокси не настроен или не требует авторизации - релей не нужен")
+        return 1
+    relay.start()
+    logging.info("Релей слушает %s", relay.server_url)
+    _threading.Event().wait()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
