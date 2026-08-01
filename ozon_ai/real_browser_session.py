@@ -17,6 +17,7 @@ from .ozon_reviews import (
     _extract_company_id,
     _load_storage_state,
     _session_needs_relogin,
+    save_session_user_agent,
 )
 
 OZON_LOGIN_URL = (
@@ -190,6 +191,11 @@ def import_session_from_browser(
         if page is not None and "seller.ozon.ru" not in page.url:
             raise RuntimeError("Откройте seller.ozon.ru в этом браузере и повторите импорт.")
         context.storage_state(path=str(session_file))
+        if page is not None:
+            try:
+                save_session_user_agent(session_file, page.evaluate("() => navigator.userAgent"))
+            except Exception:
+                pass
 
     storage_state = _load_storage_state(session_file)
     if not storage_state:
