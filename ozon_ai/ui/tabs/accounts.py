@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 
 from ...app_paths import sessions_dir
 from ...db import Database
+from ...proxy import ProxyConfig
 from ..dialogs import AccountSessionDialog
 
 OZON_LOGIN_URL = (
@@ -102,6 +103,7 @@ class AccountsTab(QWidget):
             sessions_dir(),
             OZON_LOGIN_URL,
             self,
+            proxy_config=ProxyConfig.from_db(self.db),
             mode="new_account",
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -113,6 +115,7 @@ class AccountsTab(QWidget):
             sessions_dir(),
             OZON_LOGIN_URL,
             self,
+            proxy_config=ProxyConfig.from_db(self.db),
             mode="relogin",
             account_id=account_id,
             account_name=str(account["name"]) if account else "",

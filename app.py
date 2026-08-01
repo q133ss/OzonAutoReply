@@ -48,19 +48,35 @@ def _run_open_real_browser() -> None:
     parser.add_argument("--url", default=OZON_REVIEWS_URL)
     args, _ = parser.parse_known_args(sys.argv[1:])
 
-    browser_path, profile_dir = open_real_browser(port=args.port, start_url=args.url)
+    from ozon_ai.app_paths import db_path as app_db_path
+    from ozon_ai.db import Database
+    from ozon_ai.proxy import ProxyConfig
+
+    db = Database(str(app_db_path()))
+    try:
+        db.ensure_schema()
+        proxy_config = ProxyConfig.from_db(db)
+    finally:
+        db.close()
+
+    browser = open_real_browser(port=args.port, start_url=args.url, proxy_config=proxy_config)
+    proxy_line = f"Прокси: {browser.relay.upstream_host}:{browser.relay.upstream_port}\n" if browser.relay else ""
     message = (
         "Открыт реальный браузер без Playwright-автоматизации.\n\n"
-        f"Браузер: {browser_path}\n"
-        f"Профиль: {profile_dir}\n"
+        f"Браузер: {browser.path}\n"
+        f"Профиль: {browser.profile_dir}\n"
+        f"{proxy_line}"
         f"CDP порт: {args.port}\n\n"
         "Дальше:\n"
         "1. Войдите в Ozon в открывшемся окне.\n"
         "2. Откройте seller.ozon.ru/app/reviews в этом же окне.\n"
         "3. Не закрывая браузер, запустите импорт сессии."
     )
-    print(message)
+    print(message, flush=True)
     _show_message("OzonAutoReply", message)
+    if browser.relay is not None:
+        # релей живёт в этом процессе: без ожидания браузер остался бы без прокси
+        browser.wait()
 
 
 def _run_import_session_from_browser() -> None:

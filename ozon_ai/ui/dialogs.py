@@ -70,6 +70,7 @@ class AccountSessionDialog(QDialog):
         self.profile_dir = str(profile_dir or real_browser_profile_dir())
         self.created_at = ""
         self._proxy_config = proxy_config
+        self._browser = None
         self._browser_opened = False
         self._cdp_port = 9222
 
@@ -112,25 +113,31 @@ class AccountSessionDialog(QDialog):
             f"{action}\n"
             "После входа обязательно откройте страницу seller.ozon.ru/app/reviews "
             "в этом же окне, затем вернитесь сюда и нажмите \"Импортировать сессию\".\n\n"
-            "Важно: этот шаг использует системные настройки браузера и Windows proxy, "
-            "а не встроенный proxy приложения."
+            "Браузер запускается через прокси из настроек приложения."
         )
 
     def _open_browser(self) -> None:
         try:
-            browser_path, profile_dir = open_real_browser(port=self._cdp_port, start_url=self.url)
+            browser = open_real_browser(
+                port=self._cdp_port,
+                start_url=self.url,
+                proxy_config=self._proxy_config,
+            )
         except Exception as exc:
             self.status_label.setText("Не удалось открыть реальный браузер.")
             QMessageBox.critical(self, "Ошибка браузера", str(exc))
             return
 
+        self._browser = browser
         self._browser_opened = True
-        self.profile_dir = str(profile_dir)
+        self.profile_dir = str(browser.profile_dir)
         self.import_button.setEnabled(True)
+        proxy_note = f"Прокси: {browser.relay.upstream_host}:{browser.relay.upstream_port}\n" if browser.relay else ""
         self.status_label.setText(
             "Браузер открыт.\n"
-            f"Путь: {browser_path}\n"
-            f"Профиль: {profile_dir}\n\n"
+            f"Путь: {browser.path}\n"
+            f"Профиль: {browser.profile_dir}\n"
+            f"{proxy_note}\n"
             "Войдите в Ozon, откройте seller.ozon.ru/app/reviews и затем импортируйте сессию."
         )
 

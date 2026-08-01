@@ -11,6 +11,7 @@ from uuid import uuid4
 from .app_paths import app_root, browser_profiles_dir, db_path as app_db_path, sessions_dir as app_sessions_dir
 from .browser_profile import find_chrome_executable
 from .db import Database
+from .proxy_relay import ProxyRelay
 from .ozon_reviews import (
     _clear_session_needs_relogin,
     _extract_company_id,
@@ -56,16 +57,60 @@ def real_browser_profile_dir() -> Path:
     return path
 
 
+_active_relay: Optional[ProxyRelay] = None
+
+
+@dataclass(frozen=True)
+class RealBrowser:
+    path: str
+    profile_dir: Path
+    process: subprocess.Popen
+    relay: Optional[ProxyRelay] = None
+
+    def wait(self) -> int:
+        try:
+            return self.process.wait()
+        finally:
+            self.stop_relay()
+
+    def stop_relay(self) -> None:
+        if self.relay is not None:
+            self.relay.stop()
+
+
+def _start_relay(proxy_config: Optional[object]) -> Optional[ProxyRelay]:
+    """Поднимает локальный релей, гася предыдущий: живым должен быть только один."""
+    global _active_relay
+    if _active_relay is not None:
+        _active_relay.stop()
+        _active_relay = None
+    relay = ProxyRelay.from_config(proxy_config)
+    if relay is not None:
+        relay.start()
+        _active_relay = relay
+    return relay
+
+
 def open_real_browser(
     *,
     port: int = DEFAULT_CDP_PORT,
     start_url: str = OZON_LOGIN_URL,
-) -> tuple[str, Path]:
+    proxy_config: Optional[object] = None,
+) -> RealBrowser:
     browser_path = find_chrome_executable()
     if not browser_path:
         raise RuntimeError("Google Chrome / Microsoft Edge not found.")
 
     profile_dir = real_browser_profile_dir()
+
+    relay: Optional[ProxyRelay] = None
+    proxy_server: Optional[str] = None
+    if proxy_config is not None and getattr(proxy_config, "enabled", False):
+        relay = _start_relay(proxy_config)
+        # Chrome не принимает логин и пароль в --proxy-server и показал бы диалог
+        # авторизации, поэтому прокси с паролем отдаём через локальный релей.
+        proxy_server = relay.server_url if relay is not None else proxy_config.server_url()
+
     args = [
         browser_path,
         f"--remote-debugging-port={int(port)}",
@@ -73,10 +118,26 @@ def open_real_browser(
         "--no-first-run",
         "--no-default-browser-check",
         "--lang=ru-RU",
-        start_url,
+        # --lang не влияет на navigator.languages, а en-локаль
+        # у российского продавца выглядит подозрительно
+        "--accept-lang=ru-RU,ru",
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        # на сервере без видеокарты WebGL иначе попадает в blocklist и
+        # getContext("webgl") возвращает null - явный признак робота
+        "--enable-unsafe-swiftshader",
     ]
-    subprocess.Popen(args, cwd=str(project_base_dir()))
-    return browser_path, profile_dir
+    if proxy_server:
+        args.append(f"--proxy-server={proxy_server}")
+    args.append(start_url)
+
+    try:
+        process = subprocess.Popen(args, cwd=str(project_base_dir()))
+    except Exception:
+        if relay is not None:
+            relay.stop()
+        raise
+    return RealBrowser(browser_path, profile_dir, process, relay)
 
 
 def format_accounts() -> str:
