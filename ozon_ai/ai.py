@@ -239,13 +239,30 @@ def _call_openai(
     import requests
 
     proxies = proxy_config.to_requests_proxies() if proxy_config else None
-    resp = requests.post(
-        url,
-        json=payload,
-        headers=headers,
-        timeout=timeout,
-        proxies=proxies,
-    )
+    try:
+        resp = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=timeout,
+            proxies=proxies,
+        )
+    except requests.exceptions.ProxyError:
+        if not proxies:
+            raise
+        # Прокси, купленный под Ozon, пускает только к его доменам и отвечает
+        # на api.openai.com "Tunnel connection failed: 403". Сам OpenAI при
+        # этом доступен напрямую, поэтому повторяем запрос без прокси.
+        logging.getLogger(__name__).warning(
+            "Прокси не пропустил запрос к OpenAI, повторяю напрямую"
+        )
+        resp = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=timeout,
+            proxies=None,
+        )
     if not resp.ok:
         logging.getLogger(__name__).warning(
             "OpenAI HTTP error: status=%s body=%s",

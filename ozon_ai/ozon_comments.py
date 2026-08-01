@@ -14,6 +14,7 @@ from .ozon_reviews import (
     _load_review_template,
     _load_storage_state,
     _clear_session_needs_relogin,
+    load_session_user_agent,
 )
 from .proxy import ProxyConfig
 
@@ -65,6 +66,8 @@ def send_review_comment(
     har_path = _find_latest_har(session_path)
     if har_path:
         template_headers, template_payload, template_company_id, template_user_agent = _load_review_template(har_path)
+
+    template_user_agent = template_user_agent or load_session_user_agent(session_path)
 
     company_id = company_id or template_company_id
     if not company_id:

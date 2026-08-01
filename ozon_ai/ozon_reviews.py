@@ -23,6 +23,32 @@ DEFAULT_XO3_HEADERS = {
     "x-o3-page-type": "review",
 }
 AUTH_MARKER_SUFFIX = ".relogin"
+SESSION_UA_SUFFIX = ".useragent"
+
+
+def _session_user_agent_path(session_path: Path) -> Path:
+    return session_path.with_name(session_path.name + SESSION_UA_SUFFIX)
+
+
+def save_session_user_agent(session_path: Path, user_agent: str) -> None:
+    """Запоминает User-Agent браузера, в котором была получена сессия.
+
+    Антибот Ozon привязывает выданную cookie к User-Agent: если потом ходить
+    в API с другим, ответом будет 403 с ozon-antibot: 1.
+    """
+    if not user_agent:
+        return
+    try:
+        _session_user_agent_path(session_path).write_text(user_agent, encoding="utf-8")
+    except OSError:
+        logging.getLogger(__name__).exception("Не удалось сохранить User-Agent сессии")
+
+
+def load_session_user_agent(session_path: Path) -> Optional[str]:
+    try:
+        return _session_user_agent_path(session_path).read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
 
 
 def _auth_marker_path(session_path: Path) -> Path:
@@ -275,6 +301,8 @@ def fetch_all_new_reviews(
     har_path = _find_latest_har(session_path)
     if har_path:
         template_headers, template_payload, template_company_id, template_user_agent = _load_review_template(har_path)
+
+    template_user_agent = template_user_agent or load_session_user_agent(session_path)
 
     company_id = company_id or template_company_id
     if not company_id:
