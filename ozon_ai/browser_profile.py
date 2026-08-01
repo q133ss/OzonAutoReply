@@ -2,15 +2,19 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 
+# Запасной User-Agent для HTTP-запросов к API, когда в сохранённой сессии
+# нет своего заголовка (см. ozon_reviews). Браузеру он не навязывается:
+# настоящий Chrome сообщает достоверный UA сам.
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/147.0.0.0 Safari/537.36"
+    "Chrome/151.0.0.0 Safari/537.36"
 )
 
 
@@ -37,6 +41,11 @@ class BrowserProfileConfig:
             "--disable-blink-features=AutomationControlled",
             "--accept-lang=ru-RU,ru",
             "--lang=ru-RU",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            # без видеокарты WebGL иначе попадает в blocklist и
+            # getContext("webgl") возвращает null - явный признак робота
+            "--enable-unsafe-swiftshader",
         ]
 
 
@@ -44,6 +53,7 @@ DEFAULT_BROWSER_PROFILE = BrowserProfileConfig()
 
 
 def find_chrome_executable() -> Optional[str]:
+    import glob
     env_path = os.environ.get("OZON_CHROME_EXECUTABLE")
     candidates = [
         env_path,
@@ -53,6 +63,20 @@ def find_chrome_executable() -> Optional[str]:
         r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
         r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     ]
+    # Настоящий Chrome предпочтительнее сборки Playwright: та представляется
+    # как "Chrome for Testing" и опознаётся антиботом Ozon, поэтому системные
+    # браузеры идут первыми, а сборка Playwright остаётся запасным вариантом.
+    linux_patterns = [
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        os.path.expanduser("~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome"),
+    ]
+    for pattern in linux_patterns:
+        matches = glob.glob(pattern)
+        if matches:
+            candidates.append(sorted(matches)[-1])
     for candidate in candidates:
         if candidate and Path(candidate).exists():
             return candidate
@@ -86,10 +110,43 @@ def build_init_script() -> str:
     return ""
 
 
+def _stealth_platform_overrides() -> Dict[str, str]:
+    """playwright-stealth по умолчанию выдаёт navigator.platform = Win32.
+
+    На Linux это противоречит User-Agent, а рендерер по умолчанию
+    ("Intel Iris OpenGL Engine") вообще маководский - готовая примета робота.
+    Поэтому подставляем значения, согласованные с реальной платформой.
+    """
+    if sys.platform.startswith("win"):
+        return {
+            "navigator_platform_override": "Win32",
+            "webgl_vendor_override": "Google Inc. (Intel)",
+            "webgl_renderer_override": (
+                "ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0, D3D11)"
+            ),
+        }
+    if sys.platform == "darwin":
+        return {
+            "navigator_platform_override": "MacIntel",
+            "webgl_vendor_override": "Apple Inc.",
+            "webgl_renderer_override": "Apple GPU",
+        }
+    return {
+        "navigator_platform_override": "Linux x86_64",
+        "webgl_vendor_override": "Google Inc. (Intel)",
+        "webgl_renderer_override": (
+            "ANGLE (Intel, Mesa Intel(R) UHD Graphics 620 (KBL GT2), OpenGL 4.6)"
+        ),
+    }
+
+
 def apply_browser_profile(context: Any, logger: Optional[logging.Logger] = None) -> None:
     from playwright_stealth import Stealth
 
-    stealth = Stealth(navigator_languages_override=("ru-RU", "ru"))
+    stealth = Stealth(
+        navigator_languages_override=("ru-RU", "ru"),
+        **_stealth_platform_overrides(),
+    )
     context_stealth_applied = False
     try:
         stealth.apply_stealth_sync(context)
