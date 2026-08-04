@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 
 from ..db import Database
 from ..review_sync import ReviewsPoller
+from ..session_keepalive import SessionKeepalive
 from .tabs.accounts import AccountsTab
 from .tabs.reviews import ReviewsTab
 from .tabs.examples import ExamplesTab
@@ -69,12 +70,21 @@ class MainWindow(QMainWindow):
         self._reviews_poller = ReviewsPoller(Path(db.path), interval_ms=60_000, parent=self)
         self._reviews_poller.synced.connect(self._on_reviews_synced)
         self._reviews_poller.start(immediate=True)
+        # Токен Ozon живёт около часа; без продления программа молча простаивает
+        # до тех пор, пока человек не войдёт руками.
+        self._session_keepalive = SessionKeepalive(Path(db.path), parent=self)
+        self._session_keepalive.refreshed.connect(self._on_session_refreshed)
+        self._session_keepalive.start(immediate=True)
 
     def _toggle_maximize(self) -> None:
         if self.isMaximized():
             self.showNormal()
         else:
             self.showMaximized()
+
+    def _on_session_refreshed(self, updated: int) -> None:
+        if updated:
+            self.accounts_tab.refresh()
 
     def _on_reviews_synced(self, new_count: int) -> None:
         if new_count > 0:
