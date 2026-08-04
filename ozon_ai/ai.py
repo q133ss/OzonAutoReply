@@ -22,6 +22,9 @@ _BASE_URL = os.environ.get("OPENAI_BASE_URL") or os.environ.get("OPENAI_API_BASE
 _DOTENV_CACHE: Optional[Dict[str, str]] = None
 _DOTENV_LOCK = threading.Lock()
 
+# Прокси Ozon не пускает к api.openai.com; запоминаем это на время работы.
+_proxy_blocks_openai = False
+
 _SYSTEM_PROMPT = (
     "Ты продавец на маркетплейсе. Отвечай по-русски естественно, как человек. "
     "Никаких шаблонов, канцелярита и одинаковых фраз. Не используй клише вроде "
@@ -238,7 +241,12 @@ def _call_openai(
     }
     import requests
 
+    global _proxy_blocks_openai
     proxies = proxy_config.to_requests_proxies() if proxy_config else None
+    # Один раз убедившись, что прокси к OpenAI не пускает, больше не тратим
+    # на него по секунде перед каждым ответом.
+    if proxies and _proxy_blocks_openai:
+        proxies = None
     try:
         resp = requests.post(
             url,
@@ -250,6 +258,7 @@ def _call_openai(
     except requests.exceptions.ProxyError:
         if not proxies:
             raise
+        _proxy_blocks_openai = True
         # Прокси, купленный под Ozon, пускает только к его доменам и отвечает
         # на api.openai.com "Tunnel connection failed: 403". Сам OpenAI при
         # этом доступен напрямую, поэтому повторяем запрос без прокси.
