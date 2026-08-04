@@ -291,7 +291,10 @@ def test_openai_connection(
 ) -> Dict[str, Any]:
     import requests
 
+    global _proxy_blocks_openai
     proxies = proxy_config.to_requests_proxies() if proxy_config else None
+    if proxies and _proxy_blocks_openai:
+        proxies = None
     model_name = model or get_openai_model()
     result: Dict[str, Any] = {
         "base_url": get_openai_base_url(),
@@ -329,13 +332,28 @@ def test_openai_connection(
         "Content-Type": "application/json",
     }
     try:
-        resp = requests.post(
-            f"{get_openai_base_url()}/responses",
-            json=payload,
-            headers=headers,
-            timeout=timeout,
-            proxies=proxies,
-        )
+        try:
+            resp = requests.post(
+                f"{get_openai_base_url()}/responses",
+                json=payload,
+                headers=headers,
+                timeout=timeout,
+                proxies=proxies,
+            )
+        except requests.exceptions.ProxyError:
+            if not proxies:
+                raise
+            # Прокси куплен под Ozon и к OpenAI не пускает - иначе кнопка
+            # "Проверить" отчитается об ошибке так, будто дело в ключе.
+            _proxy_blocks_openai = True
+            result["proxy_bypassed"] = True
+            resp = requests.post(
+                f"{get_openai_base_url()}/responses",
+                json=payload,
+                headers=headers,
+                timeout=timeout,
+                proxies=None,
+            )
         result["status_code"] = resp.status_code
         if not resp.ok:
             result["error"] = resp.text
